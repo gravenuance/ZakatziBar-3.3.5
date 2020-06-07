@@ -204,7 +204,7 @@ player_spells[48819] = {duration = 8} -- Consecration
 
 -- End
 
-special_spells = {}
+local special_spells = {}
 special_spells[48821] = 1 -- Holy Paladin
 special_spells[53563] = 1 -- Holy Paladin
 special_spells[53385] = 2 -- Retribution Paladin
@@ -293,7 +293,7 @@ special_spells[49284] = 3 -- Restoration Shaman
 special_spells[61301] = 3 -- Restoration Shaman
 special_spells[16188] = 3 -- Restoration Shaman
 -- Tracks the specs of other players
-specs_by_guid = {}
+local specs_by_guid = {}
 
 -- Number of buttons to spawn per bar
 local total = 15
