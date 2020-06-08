@@ -2,7 +2,7 @@ local debugging = false
 
 local spells = {}
 -- Enter spells here
--- Warrior AP
+-- Warrior
 spells[46924] = {duration = 90} -- Bladestorm
 spells[5246] = {duration = 120} -- Intimidating Shout
 spells[20230] = {duration = 300} -- Retaliation
@@ -23,7 +23,7 @@ spells[6552] = {duration = 10} -- Pummel
 spells[46968] = {duration = 20} -- Shockwave
 spells[12809] = {duration = 30} -- Concussion Blow
 spells[12976] = {duration = 180} -- Last Stand
--- Paladin HRP
+-- Paladin
 spells[25771] = {duration = 120, isAura = true} -- Forbearance
 spells[54428] = {duration = 60} -- Divine Plea
 spells[48817] = {duration = 30} -- Holy Wrath
@@ -306,8 +306,7 @@ local hostile
 local party
 local player
 
--- Artificial delay (todo: make it adjust to actual delay instead of guessproximate)
-local delay = -0.40
+-- Delay for more accurate tracking
 local delay_start = 0
 
 -- Size of side of square
@@ -319,8 +318,8 @@ local updateInterval = 0.25
 --Player identifier
 local playerGUID = UnitGUID("player")
 
-local function ZB_RemoveIcon(bar, length, id, zb_refresh, dstGUID)
-    if zb_refresh then
+local function ZB_RemoveIcon(bar, length, id, refresh, dstGUID)
+    if refresh then
         local i = 1
         local found = false
         while i < length do
@@ -394,8 +393,8 @@ local function ZB_OnUpdate(self, elapsed)
     end
 end
 
-local function ZB_AddIcon(bar, length, id, list, zb_refresh, srcGUID)
-    if zb_refresh then
+local function ZB_AddIcon(bar, length, id, list, refresh, srcGUID)
+    if refresh then
         local i = 1
         while i < length do
             if bar[i].id == id and srcGUID == bar[i].srcGUID then
@@ -444,7 +443,7 @@ local function ZB_EventType(combatEvent, bar, length, id, line, srcGUID, dstGUID
             return ZB_AddIcon(bar, length, id, line, true, srcGUID)
         end
     else
-        if combatEvent == "SPELL_DAMAGE" and not hasCastAndDamage and length < total then
+        if combatEvent == "SPELL_DAMAGE" and not line[id].hasCastAndDamage and length < total then
             return ZB_AddIcon(bar, length, id, line, false, srcGUID)
         elseif combatEvent == "SPELL_CAST_SUCCESS" and length < total then
             return ZB_AddIcon(bar, length, id, line, false, srcGUID)
@@ -511,7 +510,7 @@ local function ZB_InitializeFrames(bar)
         
         local texture = btn:CreateTexture(nil,"BACKGROUND")
         texture:SetAllPoints(true)
-        texture:SetTexCoord(0.07,0.9,0.07,0.90)
+        texture:SetTexCoord(0.07,0.9,0.07,0.90)       
     
         local text = cd:CreateFontString(nil,"ARTWORK")
         text:SetFont(STANDARD_TEXT_FONT,18,"OUTLINE")
@@ -526,8 +525,8 @@ local function ZB_InitializeFrames(bar)
 end
 
 local function ZB_ClearPlayers()
-    for k in pairs (specs_by_guid) do
-        specs_by_guid[k] = nil
+    for character in pairs (specs_by_guid) do
+        specs_by_guid[character] = nil
     end
 end
 
@@ -560,6 +559,8 @@ local function ZB_Commands(msg)
         end
     elseif msg == "clear" then
         ZB_EnteringWorld()
+    else
+        print("Mono clear je debug eshi.")
     end
 end
 
