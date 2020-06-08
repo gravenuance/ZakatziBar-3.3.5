@@ -98,27 +98,27 @@ spells[41425] = {duration = 30, isAura = true} -- Hypothermia
 spells[12042] = {duration = 84} -- Arcane Power
 spells[12043] = {duration = 84} -- Presence of Mind
 spells[42945] = {duration = 30} -- Blast Wave
-spells[42950] = {duration = 20} -- Dragon's Breath
+spells[42950] = {duration = 20, hasCastAndDamage = true} -- Dragon's Breath
 spells[28682] = {duration = 120} -- Combustion
 spells[11958] = {duration = 384, related = {44572,42917,42931,43039,12472,31687,45438}} -- COLD SNAP
 spells[44572] = {duration = 30} -- Deep Freeze
-spells[42917] = {duration = {25, 20, 20}, hasOtherDuration=true} -- Frost Nova
+spells[42917] = {duration = {25, 20, 20}, hasOtherDuration=true, hasCastAndDamage = true} -- Frost Nova
 spells[42931] = {duration = {10, 8, 8}, hasOtherDuration=true} -- Cone of Cold
 spells[43039] = {duration = 24} -- Ice Barrier
 spells[12472] = {duration = 144} -- Icy Veins
 spells[31687] = {duration = 144} -- Summon Water Elemental
 spells[45438] = {duration = {300, 240, 240}, hasOtherDuration=true} -- Ice Block
 -- Warlock
-spells[47860] = {duration = 120} -- Death Coil
+spells[47860] = {duration = 120, hasCastAndDamage = true} -- Death Coil
 spells[17928] = {duration = 40} -- Howl of Terror
 spells[48020] = {duration = 30} -- Teleport
 spells[18708] = {duration = 180} -- Fel Domination
-spells[61290] = {duration = 15} -- Shadowflame
+spells[61290] = {duration = 15, hasCastAndDamage = true} -- Shadowflame
 spells[19647] = {duration = 24} -- Spell Lock
 spells[59172] = {duration = 12} -- Chaos Bolt
-spells[17962] = {duration = 10} -- Conflagrate
-spells[47847] = {duration = 20} -- Shadowfury
-spells[47827] = {duration = 15} -- Shadowburn
+spells[17962] = {duration = 10, hasCastAndDamage = true} -- Conflagrate
+spells[47847] = {duration = 20, hasCastAndDamage = true} -- Shadowfury
+spells[47827] = {duration = 15, hasCastAndDamage = true} -- Shadowburn
 
 -- Shaman
 spells[51514] = {duration = 45} -- Hex
@@ -128,7 +128,7 @@ spells[8177] = {duration = {15, 13.5, 11.5}, hasOtherDuration=true} -- Grounding
 spells[32182] = {duration = 300} -- Heroism
 spells[2825] = {duration = 300} -- Bloodlust
 spells[30823] = {duration = 60} -- Shamanistic Rage
-spells[59159] = {duration = 35} -- Thunderstorm
+spells[59159] = {duration = 35, hasCastAndDamage = true} -- Thunderstorm
 spells[16190] = {duration = 300} -- Mana Tide Totem
 spells[16188] = {duration = 120} -- Nature's Swiftness
 spells[55166] = {duration = 180} -- Nature's Force
@@ -489,7 +489,7 @@ local function ZB_CombatLog(timestamp, combatEvent, srcGUID, srcName, srcFlags, 
     end
 end
 
-local function ZB_InitializeFrames(bar)
+local function ZB_InitializeFrames(bar, id)
     local location
     local btn
     local i = 1
@@ -510,7 +510,14 @@ local function ZB_InitializeFrames(bar)
         
         local texture = btn:CreateTexture(nil,"BACKGROUND")
         texture:SetAllPoints(true)
-        texture:SetTexCoord(0.07,0.9,0.07,0.90)       
+        texture:SetTexCoord(0.07,0.9,0.07,0.90) 
+        texture:SetBlendMode("add")
+        if id == 1 then
+            texture:SetGradient("horizontal",0.5, 0.5, 1, 0.5, 0.5, 1)
+        elseif id == 2 then
+            texture:SetGradient("horizontal", 1, 0.5, 0.5, 1, 0.5, 0.5)
+            
+        end
     
         local text = cd:CreateFontString(nil,"ARTWORK")
         text:SetFont(STANDARD_TEXT_FONT,18,"OUTLINE")
@@ -571,21 +578,21 @@ local function ZB_Create()
     player:SetClampedToScreen(true)
     player:Show()
     player:SetPoint("CENTER", UIParent, "CENTER", -225, -225)
-    ZB_InitializeFrames(player)
+    ZB_InitializeFrames(player, 0)
     party = CreateFrame("Frame",nil,UIParent)
     party:SetWidth(size*4)
     party:SetHeight(size)
     party:SetClampedToScreen(true)
     party:Show()
     party:SetPoint("CENTER", UIParent, "CENTER", -225, -270)
-    ZB_InitializeFrames(party)
+    ZB_InitializeFrames(party, 1)
     hostile = CreateFrame("Frame",nil,UIParent)
     hostile:SetWidth(size*4)
     hostile:SetHeight(size)
     hostile:SetClampedToScreen(true)
     hostile:Show()
     hostile:SetPoint("CENTER", UIParent, "CENTER", -225, -315)
-    ZB_InitializeFrames(hostile)
+    ZB_InitializeFrames(hostile, 2)
 end
 
 local function ZB_OnLoad(self)
