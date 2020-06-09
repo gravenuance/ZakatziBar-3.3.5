@@ -21,7 +21,7 @@ spells[64382] = {duration = 300} -- Shattering Throw
 spells[676] = {duration = {60, 40}, hasOtherDuration=true} -- Disarm
 spells[6552] = {duration = 10} -- Pummel
 spells[46968] = {duration = 20} -- Shockwave
-spells[12809] = {duration = 30} -- Concussion Blow
+spells[12809] = {duration = 30, hasCastAndDamage = true} -- Concussion Blow
 spells[12976] = {duration = 180} -- Last Stand
 -- Paladin
 spells[25771] = {duration = 120, isAura = true} -- Forbearance
@@ -155,7 +155,7 @@ spells[33357] = {duration = 144} -- Dash
 spells[5229] = {duration = 60} -- Enrage
 
 -- Hunter
-spells[34490] = {duration = 20} -- Silencing Shot
+spells[34490] = {duration = 20, hasCastAndDamage = true} -- Silencing Shot
 spells[23989] = {duration = 180, related = {34490,3045,34026,53271,19263,781,14311,60202,19503,19574,34600}} -- Readiness
 spells[3045] = {duration = 300} -- Rapid Fire
 spells[34026] = {duration = 60} -- Kill Command
@@ -164,7 +164,7 @@ spells[19263] = {duration = 90} -- Deterrence
 spells[781] = {duration = {16, 20}, hasOtherDuration=true} -- Disengage
 spells[14311] = {duration = 28} -- Freezing Trap
 spells[60202] = {duration = 28} -- Freezing Arrow
-spells[19503] = {duration = 30} -- Scatter Shot
+spells[19503] = {duration = 30, hasCastAndDamage = true} -- Scatter Shot
 spells[19574] = {duration = 70.2} -- Bestial Wrath
 spells[19577] = {duration = 42} -- Intimidation
 spells[34600] = {duration = 28} -- Snake Trap
@@ -480,6 +480,7 @@ local function ZB_CombatLog(timestamp, combatEvent, srcGUID, srcName, srcFlags, 
     end
     if srcGUID == playerGUID then
         if player_spells[id] then 
+            if debugging then print("Player spell.") end
             if bit.band(dstFlags, COMBATLOG_OBJECT_AFFILIATION_PARTY) > 0 then
                 length_party = ZB_EventType(combatEvent, party, length_party, id, player_spells, srcGUID, dstGUID)
             else
@@ -590,7 +591,7 @@ local function ZB_Create()
     hostile:SetHeight(size)
     hostile:SetClampedToScreen(true)
     hostile:Show()
-    hostile:SetPoint("CENTER", UIParent, "CENTER", -225, -320)
+    hostile:SetPoint("CENTER", UIParent, "CENTER", -225, -325)
     ZB_InitializeFrames(hostile)
 end
 
@@ -606,7 +607,7 @@ local function ZB_OnLoad(self)
 end
 
 local eventhandler = {
-    ["VARIABLES_LOADED"] = function(self) ZB_OnLoad(self) end,
+    ["PLAYER_LOGIN"] = function(self) ZB_OnLoad(self) end,
     ["PLAYER_ENTERING_WORLD"] = function(self) ZB_EnteringWorld(self) end,
     ["COMBAT_LOG_EVENT_UNFILTERED"] = function(self,...) ZB_CombatLog(...) end,
 }
@@ -620,4 +621,4 @@ if not ZB_Frame then
     CreateFrame("Frame","ZB_Frame",UIParent)
 end
 ZB_Frame:SetScript("OnEvent",ZB_OnEvent)
-ZB_Frame:RegisterEvent("VARIABLES_LOADED")
+ZB_Frame:RegisterEvent("PLAYER_LOGIN")
