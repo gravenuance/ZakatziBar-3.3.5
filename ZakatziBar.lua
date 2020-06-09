@@ -197,7 +197,7 @@ player_spells[6940] = {duration = 12, isAura = true} -- Hand of Sacrifice
 player_spells[48801] = {duration = 15} -- Exorcism
 player_spells[20271] = {duration = 10} -- Judgement of Light
 player_spells[53407] = {duration = 10} -- Judgement of Justice
-player_spells[48817] = {duration = 30} -- Holy Wrath
+player_spells[48817] = {duration = 30, hasCastAndDamage = true} -- Holy Wrath
 player_spells[10326] = {duration = 8} -- Turn Evil
 player_spells[48806] = {duration = 6, hasCastAndDamage = true} -- Hammer of Wrath
 player_spells[48819] = {duration = 8} -- Consecration
@@ -370,7 +370,13 @@ local function ZB_UpdateCooldowns(bar, length)
             if bar[i].cooldown <= 0 then
                     length = ZB_RemoveIcon(bar, length, i, false)
             else 
-                bar[i].text:SetText(string.format("%.0f", bar[i].cooldown))
+                if (bar[i].cooldown > 99) then
+                    bar[i].text:SetText(string.format("%.0f", bar[i].cooldown))
+                elseif (bar[i].cooldown > 9) then
+                    bar[i].text:SetText(string.format(" %.0f", bar[i].cooldown))
+                else
+                    bar[i].text:SetText(string.format("  %.0f", bar[i].cooldown))
+                end
             end
             i = i + 1
         end
@@ -489,12 +495,12 @@ local function ZB_CombatLog(timestamp, combatEvent, srcGUID, srcName, srcFlags, 
     end
 end
 
-local function ZB_InitializeFrames(bar, id)
+local function ZB_InitializeFrames(bar)
     local location
     local btn
     local i = 1
     while i < total do
-        location = size * i
+        location = size * i + 5 * i
         btn = CreateFrame("Frame",nil,bar)
         btn:SetWidth(size)
         btn:SetHeight(size)
@@ -511,16 +517,9 @@ local function ZB_InitializeFrames(bar, id)
         local texture = btn:CreateTexture(nil,"BACKGROUND")
         texture:SetAllPoints(true)
         texture:SetTexCoord(0.07,0.9,0.07,0.90) 
-        texture:SetBlendMode("add")
-        if id == 1 then
-            texture:SetGradient("horizontal",0.5, 0.5, 1, 0.5, 0.5, 1)
-        elseif id == 2 then
-            texture:SetGradient("horizontal", 1, 0.5, 0.5, 1, 0.5, 0.5)
-            
-        end
     
         local text = cd:CreateFontString(nil,"ARTWORK")
-        text:SetFont(STANDARD_TEXT_FONT,18,"OUTLINE")
+        text:SetFont(STANDARD_TEXT_FONT,20,"OUTLINE")
         text:SetTextColor(1,1,0,1)
         text:SetPoint("LEFT",btn,"LEFT",2,0)
         btn.texture = texture
@@ -578,21 +577,21 @@ local function ZB_Create()
     player:SetClampedToScreen(true)
     player:Show()
     player:SetPoint("CENTER", UIParent, "CENTER", -225, -225)
-    ZB_InitializeFrames(player, 0)
+    ZB_InitializeFrames(player)
     party = CreateFrame("Frame",nil,UIParent)
     party:SetWidth(size*4)
     party:SetHeight(size)
     party:SetClampedToScreen(true)
     party:Show()
-    party:SetPoint("CENTER", UIParent, "CENTER", -225, -270)
-    ZB_InitializeFrames(party, 1)
+    party:SetPoint("CENTER", UIParent, "CENTER", -225, -275)
+    ZB_InitializeFrames(party)
     hostile = CreateFrame("Frame",nil,UIParent)
     hostile:SetWidth(size*4)
     hostile:SetHeight(size)
     hostile:SetClampedToScreen(true)
     hostile:Show()
-    hostile:SetPoint("CENTER", UIParent, "CENTER", -225, -315)
-    ZB_InitializeFrames(hostile, 2)
+    hostile:SetPoint("CENTER", UIParent, "CENTER", -225, -320)
+    ZB_InitializeFrames(hostile)
 end
 
 local function ZB_OnLoad(self)
