@@ -1,5 +1,3 @@
-Imagine a worse version of ebar, tmw, and interrupt bar together in one addon.
-
 Tracks player, party and enemy spells. Tracks specs, and works with Preparation, Cold Snap, and Readiness.
 
 ![ZakatziBar](https://github.com/gravenuance/ZakatziBar-3.3.5/blob/master/stuff.jpeg)
