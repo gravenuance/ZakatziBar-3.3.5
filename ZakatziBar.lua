@@ -25,6 +25,7 @@ local size
 
 -- How often OnUpdate runs
 local updateInterval
+local time_elapsed
 
 --Player identifier
 local playerGUID
@@ -36,6 +37,8 @@ local function ZB_InitializeVariables()
     size = 45
     delay_start = 0
     updateInterval = 0.1
+    time_elapsed = 0
+    
     total = 15
     length_hostile = 1
     length_party = 1
@@ -390,17 +393,16 @@ local function ZB_UpdateCooldowns(bar, length)
     return length
 end
 
-local time = 0
 local function ZB_OnUpdate(self, elapsed)
-    time = time + elapsed;
-    if time >= updateInterval then
+    time_elapsed = time_elapsed + elapsed;
+    if time_elapsed >= updateInterval then
         length_player = ZB_UpdateCooldowns(player, length_player)
         length_hostile = ZB_UpdateCooldowns(hostile, length_hostile)
         length_party = ZB_UpdateCooldowns(party, length_party)
         if length_player == 1 and length_hostile == 1 and length_party == 1 then 
             frame:SetScript("OnUpdate",nil)
         end
-        time = 0
+        time_elapsed = 0
     end
 end
 
