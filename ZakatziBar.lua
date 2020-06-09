@@ -316,7 +316,7 @@ local size = 45
 local updateInterval = 0.25
 
 --Player identifier
-local playerGUID = UnitGUID("player")
+local playerGUID
 
 local function ZB_RemoveIcon(bar, length, id, refresh, dstGUID)
     if refresh then
@@ -480,7 +480,6 @@ local function ZB_CombatLog(timestamp, combatEvent, srcGUID, srcName, srcFlags, 
     end
     if srcGUID == playerGUID then
         if player_spells[id] then 
-            if debugging then print("Player spell.") end
             if bit.band(dstFlags, COMBATLOG_OBJECT_AFFILIATION_PARTY) > 0 then
                 length_party = ZB_EventType(combatEvent, party, length_party, id, player_spells, srcGUID, dstGUID)
             else
@@ -598,6 +597,7 @@ end
 local function ZB_OnLoad(self)
     self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
     self:RegisterEvent("PLAYER_ENTERING_WORLD")
+    playerGUID = UnitGUID("player")
     ZB_Create()
 
     SlashCmdList["ZAKATZIBAR"] = ZB_Commands
