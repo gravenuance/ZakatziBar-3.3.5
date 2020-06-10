@@ -194,7 +194,7 @@ local function ZB_InitializeVariables()
     spells[53227] = {duration = 20} -- Typhoon
     spells[33357] = {duration = 144} -- Dash
     spells[5229] = {duration = 60} -- Enrage
-    spells[69369] = {duration  = 8, isAura = true}
+    spells[69369] = {duration  = 8, isAura = true} -- Predator's Swiftness
     -- Hunter
     spells[34490] = {duration = 20, hasCastAndDamage = true} -- Silencing Shot
     spells[23989] = {duration = 180, related = {34490,3045,34026,53271,19263,781,14311,60202,19503,19574,34600}} -- Readiness
