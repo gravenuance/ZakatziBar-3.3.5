@@ -115,6 +115,7 @@ local function ZB_InitializeVariables()
     spells[47585] = {duration = 75} -- Dispresion
     spells[64044] = {duration = 120} -- Psychic Horror
     spells[34433] = {duration = {300, 180}, hasOtherDuration=true} -- Shadowfiend
+    spells[586] = {duration = {30, 15}, hasOtherDuration=true} -- Fade
     -- Death Knight
     spells[47476] = {duration = 120} -- Strangulate
     spells[45529] = {duration = 60} -- Blood Tap
@@ -193,6 +194,7 @@ local function ZB_InitializeVariables()
     spells[53227] = {duration = 20} -- Typhoon
     spells[33357] = {duration = 144} -- Dash
     spells[5229] = {duration = 60} -- Enrage
+    spells[69369] = {duration  = 8, isAura = true}
     -- Hunter
     spells[34490] = {duration = 20, hasCastAndDamage = true} -- Silencing Shot
     spells[23989] = {duration = 180, related = {34490,3045,34026,53271,19263,781,14311,60202,19503,19574,34600}} -- Readiness
