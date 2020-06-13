@@ -67,6 +67,7 @@ local function ZB_InitializeVariables()
     spells[46968] = {duration = 20} -- Shockwave
     spells[12809] = {duration = 30, hasCastAndDamage = true} -- Concussion Blow
     spells[12976] = {duration = 180} -- Last Stand
+    spells[60503] = {duration = 9, isAura = true} -- Taste for Blood
     -- Paladin
     spells[25771] = {duration = 120, isAura = true} -- Forbearance
     spells[54428] = {duration = 60} -- Divine Plea
@@ -215,6 +216,7 @@ local function ZB_InitializeVariables()
 
     player_spells = {}
     --Player Spells
+    player_spells[60503] = {duration = 9, isAura = true} -- Taste for Blood
     player_spells[1715] = {duration = 15, isAura = true} -- Hamstring
     player_spells[47486] = {duration = 10, isAura = true} -- Mortal Strike
     player_spells[47465] = {duration = 21, isAura = true} -- Rend
