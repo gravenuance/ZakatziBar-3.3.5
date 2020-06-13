@@ -228,7 +228,7 @@ local function ZB_InitializeVariables()
     player_spells[64205] = {duration = 10, isAura = true} -- Divine Sacrifice
     player_spells[25771] = {duration = 120, isAura = true} -- Forbearance
     player_spells[31821] = {duration = 6, isAura = true} -- Aura Mastery
-    player_spells[53601] = {duration = 60, isAura = true} -- Sacred Shield
+    player_spells[53601] = {duration = {60, 30}, hasOtherDuration = true, isAura = true} -- Sacred Shield
     player_spells[53563] = {duration = 60, isAura = true} -- Beacon of Light
     player_spells[54152] = {duration = 60, isAura = true} -- Judgements of the Pure
     player_spells[6940] = {duration = 12, isAura = true} -- Hand of Sacrifice
@@ -349,8 +349,6 @@ local function ZB_RemoveIcon(bar, length, id, refresh, dstGUID)
         end
     else 
         if (id == length-1) then
-            bar[id].text:SetText("")
-            bar[id].cd:Hide()
             bar[id]:Hide()
             return length-1
         end
@@ -363,33 +361,36 @@ local function ZB_RemoveIcon(bar, length, id, refresh, dstGUID)
         bar[i].duration = bar[i+1].duration
         bar[i].start = bar[i+1].start
         bar[i].cooldown = bar[i+1].cooldown
-        local texture = bar[i+1].texture:GetTexture()
-        bar[i].texture:SetTexture(texture)
+        bar[i].texture:SetTexture(bar[i+1].texture:GetTexture())
+        bar[i].text:SetText(bar[i+1].text:GetText())
         bar[i].cd:SetCooldown(bar[i].start,bar[i].duration)
         i = i + 1
     end
-    bar[length].text:SetText("")
-    bar[length].cd:Hide()
     bar[length]:Hide() 
     return length
 end
 
 
+local function ZB_UpdateText(bar, i)
+    if (bar[i].cooldown > 60) then
+        bar[i].text:SetText(string.format("%.0fm", floor(bar[i].cooldown/60)))
+    elseif (bar[i].cooldown > 9) then
+        bar[i].text:SetText(string.format(" %.0f", floor(bar[i].cooldown)))
+    else
+        bar[i].text:SetText(string.format("  %.0f", floor(bar[i].cooldown)))
+    end
+end
+
 local function ZB_UpdateCooldowns(bar, length)
     if length > 1 then
         local i = 1
+        local get_time = GetTime()
         while i < length do
-            bar[i].cooldown = bar[i].start + bar[i].duration - GetTime()
+            bar[i].cooldown = bar[i].start + bar[i].duration - get_time
             if bar[i].cooldown <= 0 then
                     length = ZB_RemoveIcon(bar, length, i, false)
             else 
-                if (bar[i].cooldown > 99) then
-                    bar[i].text:SetText(string.format("%.0f", floor(bar[i].cooldown)))
-                elseif (bar[i].cooldown > 9) then
-                    bar[i].text:SetText(string.format(" %.0f", floor(bar[i].cooldown)))
-                else
-                    bar[i].text:SetText(string.format("  %.0f", floor(bar[i].cooldown)))
-                end
+                ZB_UpdateText(bar, i)
             end
             i = i + 1
         end
@@ -411,13 +412,15 @@ local function ZB_OnUpdate(self, elapsed)
 end
 
 local function ZB_AddIcon(bar, length, id, list, refresh, srcGUID)
+    local get_time = GetTime()
     if refresh then
         local i = 1
         while i < length do
             if bar[i].id == id and srcGUID == bar[i].srcGUID then
-                bar[i].start = GetTime()
+                bar[i].start = get_time*2-delay_start
+                bar[i].cooldown = bar[i].start + bar[i].duration - get_time
                 bar[i].cd:SetCooldown(bar[i].start,bar[i].duration)
-                bar[i].text:SetText(bar[i].duration)
+                ZB_UpdateText(bar, i)
                 return length
             end
             i = i + 1
@@ -425,6 +428,7 @@ local function ZB_AddIcon(bar, length, id, list, refresh, srcGUID)
     end
     if length < total then
         bar[length].srcGUID = srcGUID
+
         if list[id].hasOtherDuration then
             if specs_by_guid[srcGUID] then
                 bar[length].duration = list[id].duration[specs_by_guid[srcGUID]]
@@ -434,15 +438,19 @@ local function ZB_AddIcon(bar, length, id, list, refresh, srcGUID)
         else
             bar[length].duration = list[id].duration
         end
+
+        bar[length].start = get_time*2-delay_start
+        bar[length].cooldown = bar[length].start + bar[length].duration - get_time
+        ZB_UpdateText(bar, length)
+
         bar[length].id = id
+
         local _,_,icon = GetSpellInfo(id)
         bar[length].texture:SetTexture(icon)
-        bar[length].text:SetText(bar[length].duration)
+        bar[length].cd:SetCooldown(bar[length].start,bar[length].duration)
 
         bar[length]:Show()
-        bar[length].cd:Show()
-        bar[length].start = GetTime()*2-delay_start
-        bar[length].cd:SetCooldown(bar[length].start,bar[length].duration)
+
         frame:SetScript("OnUpdate", ZB_OnUpdate)
         return length + 1
     end
@@ -523,7 +531,6 @@ local function ZB_InitializeFrames(bar)
         cd.noCooldownCount = true
         cd:SetAllPoints(true)
         cd:SetFrameStrata("MEDIUM")
-        cd:Hide()
         
         local texture = btn:CreateTexture(nil,"BACKGROUND")
         texture:SetAllPoints(true)
@@ -585,21 +592,18 @@ local function ZB_CreateBars()
     player:SetWidth(size*4)
     player:SetHeight(size)
     player:SetClampedToScreen(true)
-    player:Show()
     player:SetPoint("CENTER", UIParent, "CENTER", -225, -225)
     ZB_InitializeFrames(player)
     party = CreateFrame("Frame",nil,UIParent)
     party:SetWidth(size*4)
     party:SetHeight(size)
     party:SetClampedToScreen(true)
-    party:Show()
     party:SetPoint("CENTER", UIParent, "CENTER", -225, -275)
     ZB_InitializeFrames(party)
     hostile = CreateFrame("Frame",nil,UIParent)
     hostile:SetWidth(size*4)
     hostile:SetHeight(size)
     hostile:SetClampedToScreen(true)
-    hostile:Show()
     hostile:SetPoint("CENTER", UIParent, "CENTER", -225, -325)
     ZB_InitializeFrames(hostile)
 end
