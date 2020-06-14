@@ -1,3 +1,5 @@
+local AddonName = ...
+
 local debugging
 
 local spells
@@ -419,7 +421,7 @@ local function ZB_OnUpdate(self, elapsed)
         length_hostile = ZB_UpdateCooldowns(hostile, length_hostile)
         length_party = ZB_UpdateCooldowns(party, length_party)
         if length_player == 1 and length_hostile == 1 and length_party == 1 then 
-            frame:SetScript("OnUpdate",nil)
+            ZB_Frame:SetScript("OnUpdate",nil)
         end
         time_elapsed = 0
     end
@@ -465,7 +467,7 @@ local function ZB_AddIcon(bar, length, id, list, refresh, srcGUID)
 
         bar[length]:Show()
 
-        frame:SetScript("OnUpdate", ZB_OnUpdate)
+        ZB_Frame:SetScript("OnUpdate", ZB_OnUpdate)
         return length + 1
     end
     return length
@@ -608,14 +610,16 @@ local function ZB_Commands(msg)
 end
 
 local function ZB_OnLoad(self)
-    self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-    self:RegisterEvent("PLAYER_ENTERING_WORLD")
-    ZB_InitializeVariables()
-    player = ZB_InitializeBars(player, player_x, player_y)
-    party = ZB_InitializeBars(party, party_x, party_y)
-    hostile = ZB_InitializeBars(hostile, hostile_x, hostile_y)
-    SlashCmdList["ZAKATZIBAR"] = ZB_Commands
-    SLASH_ZAKATZIBAR1 = "/zb"
+    if(self.AddonName == AddonName) then
+        self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+        self:RegisterEvent("PLAYER_ENTERING_WORLD")
+        ZB_InitializeVariables()
+        player = ZB_InitializeBars(player, player_x, player_y)
+        party = ZB_InitializeBars(party, party_x, party_y)
+        hostile = ZB_InitializeBars(hostile, hostile_x, hostile_y)
+        SlashCmdList["ZAKATZIBAR"] = ZB_Commands
+        SLASH_ZAKATZIBAR1 = "/zb"
+    end
 end
 
 local eventhandler = {
@@ -631,6 +635,7 @@ end
 
 if not ZB_Frame then
     CreateFrame("Frame","ZB_Frame",UIParent)
+    ZB_Frame.AddonName = AddonName
 end
 ZB_Frame:SetScript("OnEvent",ZB_OnEvent)
 ZB_Frame:RegisterEvent("ADDON_LOADED")
