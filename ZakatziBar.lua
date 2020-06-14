@@ -616,12 +616,10 @@ local function ZB_OnLoad(self)
     hostile = ZB_InitializeBars(hostile, hostile_x, hostile_y)
     SlashCmdList["ZAKATZIBAR"] = ZB_Commands
     SLASH_ZAKATZIBAR1 = "/zb"
-    
-    print("ZakatziBar loaded.")
 end
 
 local eventhandler = {
-    ["PLAYER_LOGIN"] = function(self) ZB_OnLoad(self) end,
+    ["ADDON_LOADED"] = function(self) ZB_OnLoad(self) end,
     ["PLAYER_ENTERING_WORLD"] = function(self) ZB_EnteringWorld(self) end,
     ["COMBAT_LOG_EVENT_UNFILTERED"] = function(self,...) ZB_CombatLog(...) end,
 }
@@ -635,4 +633,4 @@ if not ZB_Frame then
     CreateFrame("Frame","ZB_Frame",UIParent)
 end
 ZB_Frame:SetScript("OnEvent",ZB_OnEvent)
-ZB_Frame:RegisterEvent("PLAYER_LOGIN")
+ZB_Frame:RegisterEvent("ADDON_LOADED")
