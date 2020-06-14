@@ -30,9 +30,23 @@ local time_elapsed
 --Player identifier
 local playerGUID
 
+--Bar locations
+local player_x
+local player_y
+local party_x
+local party_y
+local hostile_x
+local hostile_y
+
 
 local function ZB_InitializeVariables()
     playerGUID = UnitGUID("player")
+    player_x = -225
+    player_y = -225
+    party_x = -225
+    party_y = -275
+    hostile_x = -225
+    hostile_y = -325
     debugging = false
     size = 45
     delay_start = 0
@@ -375,9 +389,9 @@ local function ZB_UpdateText(bar, i)
     if (bar[i].cooldown > 60) then
         bar[i].text:SetText(string.format("%.0fm", floor(bar[i].cooldown/60)))
     elseif (bar[i].cooldown > 9) then
-        bar[i].text:SetText(string.format(" %.0f", floor(bar[i].cooldown)))
+        bar[i].text:SetText(string.format("%.0f", floor(bar[i].cooldown)))
     else
-        bar[i].text:SetText(string.format("  %.0f", floor(bar[i].cooldown)))
+        bar[i].text:SetText(string.format("0%.0f", floor(bar[i].cooldown)))
     end
 end
 
@@ -514,7 +528,12 @@ local function ZB_CombatLog(timestamp, combatEvent, srcGUID, srcName, srcFlags, 
     end
 end
 
-local function ZB_InitializeFrames(bar)
+local function ZB_InitializeBars(bar, bar_x, bar_y)
+    bar = CreateFrame("Frame",nil,UIParent)
+    bar:SetWidth(size*4)
+    bar:SetHeight(size)
+    bar:SetClampedToScreen(true)
+    bar:SetPoint("CENTER", UIParent, "CENTER", bar_x, bar_y)
     local location
     local btn
     local i = 1
@@ -546,6 +565,7 @@ local function ZB_InitializeFrames(bar)
         bar[i] = btn 
         i = i + 1
     end   
+    return bar
 end
 
 local function ZB_ClearPlayers()
@@ -576,43 +596,24 @@ local function ZB_Commands(msg)
     if msg == "debug" then
         debugging = not debugging
         if debugging then
-            print("Apsa debugging.")
+            print("Debugging on.")
         else 
-            print("Esvisa debugging.")
+            print("Debugging off.")
         end
     elseif msg == "clear" then
         ZB_EnteringWorld()
     else
-        print("Mono clear je debug eshi.")
+        print("You can only 'clear' and 'debug'.")
     end
-end
-
-local function ZB_CreateBars()
-    player = CreateFrame("Frame",nil,UIParent)
-    player:SetWidth(size*4)
-    player:SetHeight(size)
-    player:SetClampedToScreen(true)
-    player:SetPoint("CENTER", UIParent, "CENTER", -225, -225)
-    ZB_InitializeFrames(player)
-    party = CreateFrame("Frame",nil,UIParent)
-    party:SetWidth(size*4)
-    party:SetHeight(size)
-    party:SetClampedToScreen(true)
-    party:SetPoint("CENTER", UIParent, "CENTER", -225, -275)
-    ZB_InitializeFrames(party)
-    hostile = CreateFrame("Frame",nil,UIParent)
-    hostile:SetWidth(size*4)
-    hostile:SetHeight(size)
-    hostile:SetClampedToScreen(true)
-    hostile:SetPoint("CENTER", UIParent, "CENTER", -225, -325)
-    ZB_InitializeFrames(hostile)
 end
 
 local function ZB_OnLoad(self)
     self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
     self:RegisterEvent("PLAYER_ENTERING_WORLD")
     ZB_InitializeVariables()
-    ZB_CreateBars()
+    player = ZB_InitializeBars(player, player_x, player_y)
+    party = ZB_InitializeBars(party, party_x, party_y)
+    hostile = ZB_InitializeBars(hostile, hostile_x, hostile_y)
     SlashCmdList["ZAKATZIBAR"] = ZB_Commands
     SLASH_ZAKATZIBAR1 = "/zb"
     
