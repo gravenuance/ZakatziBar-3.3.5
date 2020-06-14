@@ -388,7 +388,7 @@ end
 local function ZB_UpdateText(bar, i)
     if (bar[i].cooldown > 60) then
         bar[i].text:SetText(string.format("%.0fm", floor(bar[i].cooldown/60)))
-    elseif (bar[i].cooldown > 9) then
+    elseif (bar[i].cooldown >= 10) then
         bar[i].text:SetText(string.format(" %.0f", floor(bar[i].cooldown)))
     else
         bar[i].text:SetText(string.format("  %.0f", floor(bar[i].cooldown)))
