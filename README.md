@@ -1,4 +1,4 @@
-Tracks player, party and enemy spells. Tracks specs, and works with Preparation, Cold Snap, and Readiness.
+Tracks player, party and hostile spells. Tracks specs, and works with Preparation, Cold Snap, and Readiness.
 
 ![ZakatziBar](https://github.com/gravenuance/ZakatziBar-3.3.5/blob/master/Screenshot.jpg)
 
