@@ -428,12 +428,28 @@ local function ZB_OnUpdate(self, elapsed)
 end
 
 local function ZB_AddIcon(bar, length, id, list, refresh, srcGUID)
+    local _duration = 0;
+    if list[id].hasOtherDuration then
+        if specs_by_guid[srcGUID] then
+            if (list[id].duration[specs_by_guid[srcGUID]]) then
+                _duration = list[id].duration[specs_by_guid[srcGUID]]
+            end
+        else
+            _duration = list[id].duration[1]
+        end
+    else
+        _duration = list[id].duration
+    end
+    if _duration == 0 then
+        print(_duration)
+    end
     local get_time = GetTime()
     if refresh then
         local i = 1
         while i < length do
             if bar[i].id == id and srcGUID == bar[i].srcGUID then
                 bar[i].start = get_time*2-delay_start
+                bar[i].duration = _duration
                 bar[i].cooldown = bar[i].start + bar[i].duration - get_time
                 bar[i].cd:SetCooldown(bar[i].start,bar[i].duration)
                 ZB_UpdateText(bar, i)
@@ -444,16 +460,7 @@ local function ZB_AddIcon(bar, length, id, list, refresh, srcGUID)
     end
     if length < total then
         bar[length].srcGUID = srcGUID
-
-        if list[id].hasOtherDuration then
-            if specs_by_guid[srcGUID] then
-                bar[length].duration = list[id].duration[specs_by_guid[srcGUID]]
-            else
-                bar[length].duration = list[id].duration[1]
-            end
-        else
-            bar[length].duration = list[id].duration
-        end
+        bar[length].duration = _duration
 
         bar[length].start = get_time*2-delay_start
         bar[length].cooldown = bar[length].start + bar[length].duration - get_time
