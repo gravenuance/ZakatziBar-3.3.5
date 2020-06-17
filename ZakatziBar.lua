@@ -348,12 +348,12 @@ local function ZB_InitializeVariables()
     special_spells[16188] = 3 -- Restoration Shaman
 end
 
-local function ZB_RemoveIcon(bar, length, id, refresh, dstGUID)
-    if refresh then
+local function ZB_RemoveIcon(bar, length, id, aura, srcGUID)
+    if aura then
         local i = 1
         local found = false
         while i < length do
-            if bar[i].id == id and dstGUID == bar[i].srcGUID then
+            if bar[i].id == id and srcGUID == bar[i].srcGUID then
                 id = i
                 found = true
                 break
@@ -362,15 +362,10 @@ local function ZB_RemoveIcon(bar, length, id, refresh, dstGUID)
         end
         if not found then
             return length
-        end
-    else 
-        if (id == length-1) then
-            bar[id]:Hide()
-            return length-1
-        end
-    end     
-    local i = id
+        end  
+    end  
     length = length - 1
+    local i = id
     while i < length do
         bar[i].id = bar[i+1].id
         bar[i].srcGUID = bar[i+1].srcGUID
@@ -440,9 +435,6 @@ local function ZB_AddIcon(bar, length, id, list, refresh, srcGUID)
     else
         _duration = list[id].duration
     end
-    if _duration == 0 then
-        print(_duration)
-    end
     local get_time = GetTime()
     if refresh then
         local i = 1
@@ -501,7 +493,7 @@ local function ZB_EventType(combatEvent, bar, length, id, line, srcGUID, dstGUID
 end
 
 local function ZB_CombatLog(timestamp, combatEvent, srcGUID, srcName, srcFlags, dstGUID, dstName, dstFlags, id, name)
-    if debugging and (srcGUID == (playerGUID or UnitGUID("target"))) then
+    if debugging and (srcGUID == (playerGUID or UnitGUID("target") or dstGUID == (playerGUID or UnitGUID("target")))) then
         print(id)
         print(name)
         print(combatEvent)
