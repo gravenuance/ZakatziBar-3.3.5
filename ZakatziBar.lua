@@ -419,12 +419,13 @@ end
 local function ZB_OnUpdate(self, elapsed)
     time_elapsed = time_elapsed + elapsed;
     if time_elapsed >= updateInterval then
+        if length_player == 1 and length_hostile == 1 and length_party == 1 then 
+            ZB_Frame:SetScript("OnUpdate",nil)
+            return
+        end
         length_player = ZB_UpdateCooldowns(player, length_player)
         length_hostile = ZB_UpdateCooldowns(hostile, length_hostile)
         length_party = ZB_UpdateCooldowns(party, length_party)
-        if length_player == 1 and length_hostile == 1 and length_party == 1 then 
-            ZB_Frame:SetScript("OnUpdate",nil)
-        end
         time_elapsed = 0
     end
 end
