@@ -40,6 +40,8 @@ local party_y
 local hostile_x
 local hostile_y
 
+local clearing
+
 
 local function ZB_InitializeVariables()
     playerGUID = UnitGUID("player")
@@ -50,6 +52,7 @@ local function ZB_InitializeVariables()
     hostile_x = -225
     hostile_y = -325
     debugging = false
+    clearing = false
     size = 45
     delay_start = 0
     updateInterval = 0.1
@@ -81,7 +84,7 @@ local function ZB_InitializeVariables()
     spells[676] = {duration = {60, 40}, hasOtherDuration=true} -- Disarm
     spells[6552] = {duration = 10} -- Pummel
     spells[46968] = {duration = 20} -- Shockwave
-    spells[12809] = {duration = 30, hasCastAndDamage = true} -- Concussion Blow
+    spells[12809] = {duration = 30, ignoreDamage = true} -- Concussion Blow
     spells[12976] = {duration = 180} -- Last Stand
     spells[60503] = {duration = 9, isAura = true} -- Taste for Blood
     -- Paladin
@@ -158,27 +161,27 @@ local function ZB_InitializeVariables()
     spells[12042] = {duration = 84} -- Arcane Power
     spells[12043] = {duration = 84} -- Presence of Mind
     spells[42945] = {duration = 30} -- Blast Wave
-    spells[42950] = {duration = 20, hasCastAndDamage = true} -- Dragon's Breath
+    spells[42950] = {duration = 20, ignoreDamage = true} -- Dragon's Breath
     spells[28682] = {duration = 120} -- Combustion
     spells[11958] = {duration = 384, related = {44572,42917,42931,43039,12472,31687,45438}} -- COLD SNAP
     spells[44572] = {duration = 30} -- Deep Freeze
-    spells[42917] = {duration = {25, 20, 20}, hasOtherDuration=true, hasCastAndDamage = true} -- Frost Nova
+    spells[42917] = {duration = {25, 20, 20}, hasOtherDuration=true, ignoreDamage = true} -- Frost Nova
     spells[42931] = {duration = {10, 8, 8}, hasOtherDuration=true} -- Cone of Cold
     spells[43039] = {duration = 24} -- Ice Barrier
     spells[12472] = {duration = 144} -- Icy Veins
     spells[31687] = {duration = 144} -- Summon Water Elemental
     spells[45438] = {duration = {300, 240, 240}, hasOtherDuration=true} -- Ice Block
     -- Warlock
-    spells[47860] = {duration = 120, hasCastAndDamage = true} -- Death Coil
+    spells[47860] = {duration = 120, ignoreDamage = true} -- Death Coil
     spells[17928] = {duration = 40} -- Howl of Terror
     spells[48020] = {duration = 30} -- Teleport
     spells[18708] = {duration = 180} -- Fel Domination
-    spells[61290] = {duration = 15, hasCastAndDamage = true} -- Shadowflame
+    spells[61290] = {duration = 15, ignoreDamage = true} -- Shadowflame
     spells[19647] = {duration = 24} -- Spell Lock
     spells[59172] = {duration = 12} -- Chaos Bolt
-    spells[17962] = {duration = 10, hasCastAndDamage = true} -- Conflagrate
-    spells[47847] = {duration = 20, hasCastAndDamage = true} -- Shadowfury
-    spells[47827] = {duration = 15, hasCastAndDamage = true} -- Shadowburn
+    spells[17962] = {duration = 10, ignoreDamage = true} -- Conflagrate
+    spells[47847] = {duration = 20, ignoreDamage = true} -- Shadowfury
+    spells[47827] = {duration = 15, ignoreDamage = true} -- Shadowburn
     -- Shaman
     spells[51514] = {duration = 45} -- Hex
     spells[57994] = {duration = {5.2, 5, 6}, hasOtherDuration=true} -- Windshear
@@ -187,7 +190,7 @@ local function ZB_InitializeVariables()
     spells[32182] = {duration = 300} -- Heroism
     spells[2825] = {duration = 300} -- Bloodlust
     spells[30823] = {duration = 60} -- Shamanistic Rage
-    spells[59159] = {duration = 35, hasCastAndDamage = true} -- Thunderstorm
+    spells[59159] = {duration = 35, ignoreDamage = true} -- Thunderstorm
     spells[16190] = {duration = 300} -- Mana Tide Totem
     spells[16188] = {duration = 120} -- Nature's Swiftness
     spells[55166] = {duration = 180} -- Nature's Force
@@ -213,7 +216,7 @@ local function ZB_InitializeVariables()
     spells[5229] = {duration = 60} -- Enrage
     spells[69369] = {duration  = 8, isAura = true} -- Predator's Swiftness
     -- Hunter
-    spells[34490] = {duration = 20, hasCastAndDamage = true} -- Silencing Shot
+    spells[34490] = {duration = 20, ignoreDamage = true} -- Silencing Shot
     spells[23989] = {duration = 180, related = {34490,3045,34026,53271,19263,781,14311,60202,19503,19574,34600}} -- Readiness
     spells[3045] = {duration = 300} -- Rapid Fire
     spells[34026] = {duration = 60} -- Kill Command
@@ -222,7 +225,7 @@ local function ZB_InitializeVariables()
     spells[781] = {duration = {16, 20}, hasOtherDuration=true} -- Disengage
     spells[14311] = {duration = 28} -- Freezing Trap
     spells[60202] = {duration = 28} -- Freezing Arrow
-    spells[19503] = {duration = 30, hasCastAndDamage = true} -- Scatter Shot
+    spells[19503] = {duration = 30, ignoreDamage = true} -- Scatter Shot
     spells[19574] = {duration = 70.2} -- Bestial Wrath
     spells[19577] = {duration = 42} -- Intimidation
     spells[34600] = {duration = 28} -- Snake Trap
@@ -251,9 +254,9 @@ local function ZB_InitializeVariables()
     player_spells[48801] = {duration = 15} -- Exorcism
     player_spells[20271] = {duration = 10} -- Judgement of Light
     player_spells[53407] = {duration = 10} -- Judgement of Justice
-    player_spells[48817] = {duration = 30, hasCastAndDamage = true} -- Holy Wrath
+    player_spells[48817] = {duration = 30, ignoreDamage = true} -- Holy Wrath
     player_spells[10326] = {duration = 8} -- Turn Evil
-    player_spells[48806] = {duration = 6, hasCastAndDamage = true} -- Hammer of Wrath
+    player_spells[48806] = {duration = 6, ignoreDamage = true} -- Hammer of Wrath
     player_spells[48819] = {duration = 8} -- Consecration
     --End
 
@@ -377,7 +380,10 @@ local function ZB_RemoveIcon(bar, length, id, aura, srcGUID)
         bar[i].cd:SetCooldown(bar[i].start,bar[i].duration)
         i = i + 1
     end
-    bar[length]:Hide() 
+    bar[length]:Hide()
+    bar[length].texture:Hide()
+    bar[length].text:SetText("") 
+    bar[length].cd:Hide()
     return length
 end
 
@@ -400,6 +406,7 @@ local function ZB_UpdateCooldowns(bar, length)
             bar[i].cooldown = bar[i].start + bar[i].duration - get_time
             if bar[i].cooldown <= 0 then
                     length = ZB_RemoveIcon(bar, length, i, false)
+                    i = i - 1
             else 
                 ZB_UpdateText(bar, i)
             end
@@ -456,7 +463,7 @@ local function ZB_AddIcon(bar, length, id, list, refresh, srcGUID)
 
         bar[length].start = get_time*2-delay_start
         bar[length].cooldown = bar[length].start + bar[length].duration - get_time
-        ZB_UpdateText(bar, length)
+        
 
         bar[length].id = id
 
@@ -465,6 +472,9 @@ local function ZB_AddIcon(bar, length, id, list, refresh, srcGUID)
         bar[length].cd:SetCooldown(bar[length].start,bar[length].duration)
 
         bar[length]:Show()
+        bar[length].texture:Show()
+        bar[length].cd:Show()
+        ZB_UpdateText(bar, length)
 
         ZB_Frame:SetScript("OnUpdate", ZB_OnUpdate)
         return length + 1
@@ -475,7 +485,7 @@ end
 local function ZB_EventType(combatEvent, bar, length, id, line, srcGUID, dstGUID)
     delay_start = GetTime()
     if line[id].isAura then
-        if combatEvent == "SPELL_AURA_APPLIED" and length < total then
+        if combatEvent == "SPELL_AURA_APPLIED" then
             return ZB_AddIcon(bar, length, id, line, false, srcGUID)
         elseif combatEvent == "SPELL_AURA_REMOVED" then
             return ZB_RemoveIcon(bar, length, id, true, srcGUID)
@@ -483,9 +493,9 @@ local function ZB_EventType(combatEvent, bar, length, id, line, srcGUID, dstGUID
             return ZB_AddIcon(bar, length, id, line, true, srcGUID)
         end
     else
-        if combatEvent == "SPELL_DAMAGE" and not line[id].hasCastAndDamage and length < total then
+        if combatEvent == "SPELL_DAMAGE" and not line[id].ignoreDamage then
             return ZB_AddIcon(bar, length, id, line, false, srcGUID)
-        elseif combatEvent == "SPELL_CAST_SUCCESS" and length < total then
+        elseif combatEvent == "SPELL_CAST_SUCCESS" and not line[id].ignoreSuccess then
             return ZB_AddIcon(bar, length, id, line, false, srcGUID)
         end
     end
@@ -497,6 +507,10 @@ local function ZB_CombatLog(timestamp, combatEvent, srcGUID, srcName, srcFlags, 
         print(id)
         print(name)
         print(combatEvent)
+    end
+    if clearing then
+        print("Clearing data.")
+        return
     end
     if special_spells[id] then
         specs_by_guid[srcGUID] = special_spells[id]
@@ -587,10 +601,12 @@ local function ZB_ResetAll(bar, length)
 end
 
 local function ZB_EnteringWorld()
+    clearing = true
     length_player = ZB_ResetAll(player, length_player)
     length_hostile = ZB_ResetAll(hostile, length_hostile)
     length_party = ZB_ResetAll(party, length_party)
     ZB_ClearPlayers()
+    clearing = false
 end
 
 local function ZB_Commands(msg)
