@@ -1,6 +1,6 @@
-Tracks player, party and hostile spells. Tracks specs, and works with Preparation, Cold Snap, and Readiness.
+A World of Warcraft 3.3.5 addon.
 
-![ZakatziBar](https://github.com/gravenuance/ZakatziBar-3.3.5/blob/master/Screenshot.jpg)
+Tracks player, party and hostile spells. Tracks specs, and works with Preparation, Cold Snap, and Readiness.
 
 ---
 Spells are hardcoded, but you can easily acquire their IDs by doing '/zb debug'.
