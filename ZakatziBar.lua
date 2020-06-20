@@ -42,9 +42,13 @@ local hostile_y
 
 local clearing
 
+local disabled
+
 
 local function ZB_InitializeVariables()
     playerGUID = UnitGUID("player")
+    local className, classLocalized = UnitClass("player")
+    print(className, classLocalized)
     player_x = -225
     player_y = -225
     party_x = -225
@@ -66,175 +70,176 @@ local function ZB_InitializeVariables()
     spells = {}
     -- Spells
     -- Warrior
-    spells[46924] = {duration = 90} -- Bladestorm
-    spells[5246] = {duration = 120} -- Intimidating Shout
-    spells[20230] = {duration = 300} -- Retaliation
-    spells[1719] = {duration = 300} -- Recklessness
-    spells[2565] = {duration = {60,40}, hasOtherDuration=true} -- Shield Block
-    spells[871] = {duration = 300} -- Shield Wall
-    spells[23920] = {duration = 10} -- Spell Reflection
-    spells[3411] = {duration = 30} -- Intervene
-    spells[11578] = {duration = {20, 15}, hasOtherDuration=true} -- Charge
-    spells[12328] = {duration = 30} -- Sweeping Strikes
-    spells[18499] = {duration = 30} -- Berserker Rage
-    spells[55694] = {duration = 180} -- Enraged Regeneration
-    spells[20252] = {duration = {25, 30}, hasOtherDuration=true} -- Intercept
-    spells[72] = {duration = 12} -- Shield Bash
-    spells[64382] = {duration = 300} -- Shattering Throw
-    spells[676] = {duration = {60, 40}, hasOtherDuration=true} -- Disarm
-    spells[6552] = {duration = 10} -- Pummel
-    spells[46968] = {duration = 20} -- Shockwave
-    spells[12809] = {duration = 30, ignoreDamage = true} -- Concussion Blow
-    spells[12976] = {duration = 180} -- Last Stand
+    spells[46924] = {duration = 90, isSuccess = true} -- Bladestorm
+    spells[5246] = {duration = 120, isSuccess = true} -- Intimidating Shout
+    spells[20230] = {duration = 300, isSuccess = true} -- Retaliation
+    spells[1719] = {duration = 300, isSuccess = true} -- Recklessness
+    spells[2565] = {duration = {60,40}, hasOtherDuration=true, isSuccess = true} -- Shield Block
+    spells[871] = {duration = 300, isSuccess = true} -- Shield Wall
+    spells[23920] = {duration = 10, isSuccess = true} -- Spell Reflection
+    spells[3411] = {duration = 30, isSuccess = true} -- Intervene
+    spells[11578] = {duration = {20, 15}, hasOtherDuration=true, isSuccess = true} -- Charge
+    spells[12328] = {duration = 30, isSuccess = true} -- Sweeping Strikes
+    spells[18499] = {duration = 30, isSuccess = true} -- Berserker Rage
+    spells[55694] = {duration = 180, isSuccess = true} -- Enraged Regeneration
+    spells[20252] = {duration = {25, 30}, hasOtherDuration=true, isSuccess = true} -- Intercept
+    spells[72] = {duration = 12, isSuccess = true} -- Shield Bash
+    spells[64382] = {duration = 300, isSuccess = true} -- Shattering Throw
+    spells[676] = {duration = {60, 40}, hasOtherDuration=true, isSuccess = true} -- Disarm
+    spells[6552] = {duration = 10, isSuccess = true} -- Pummel
+    spells[46968] = {duration = 20, isSuccess = true} -- Shockwave
+    spells[12809] = {duration = 30, isSuccess = true} -- Concussion Blow
+    spells[12976] = {duration = 180, isSuccess = true} -- Last Stand
     spells[60503] = {duration = 9, isAura = true} -- Taste for Blood
     -- Paladin
     spells[25771] = {duration = 120, isAura = true} -- Forbearance
-    spells[54428] = {duration = 60} -- Divine Plea
-    spells[48817] = {duration = 30} -- Holy Wrath
-    spells[498] = {duration = 180} -- Divine Protection
-    spells[64205] = {duration = 120} -- Divine Sacrifice
-    spells[6940] = {duration = 120} -- Hand of Sacrifice
-    spells[642] = {duration = 300} -- Divine Shield
-    spells[10308] = {duration = {40, 60, 30}, hasOtherDuration=true} -- Hammer of Justice
-    spells[1044] = {duration = 25} -- Hand of Freedom
-    spells[31884] = {duration = 120} -- Avenging Wrath
-    spells[10278] = {duration = 180} -- Hand of Protection
-    spells[20066] = {duration = 60} -- Repentance
-    spells[31821] = {duration = 120} -- Aura Mastery
-    spells[31842] = {duration = 180} -- Divine Illumination
-    spells[48801] = {duration = 15} -- Exorcism
-    spells[20216] = {duration = 120} -- Divine Favor
-    spells[48827] = {duration = 30} -- Avenger's Shield
+    spells[54428] = {duration = 60, isSuccess = true} -- Divine Plea
+    spells[48817] = {duration = 30, isSuccess = true} -- Holy Wrath
+    spells[498] = {duration = 180, isSuccess = true} -- Divine Protection
+    spells[64205] = {duration = 120, isSuccess = true} -- Divine Sacrifice
+    spells[6940] = {duration = 120, isSuccess = true} -- Hand of Sacrifice
+    spells[642] = {duration = 300, isSuccess = true} -- Divine Shield
+    spells[10308] = {duration = {40, 60, 30}, hasOtherDuration=true, isSuccess = true} -- Hammer of Justice
+    spells[1044] = {duration = 25, isSuccess = true} -- Hand of Freedom
+    spells[31884] = {duration = 120, isSuccess = true} -- Avenging Wrath
+    spells[10278] = {duration = 180, isSuccess = true} -- Hand of Protection
+    spells[20066] = {duration = 60, isSuccess = true} -- Repentance
+    spells[31821] = {duration = 120, isSuccess = true} -- Aura Mastery
+    spells[31842] = {duration = 180, isSuccess = true} -- Divine Illumination
+    spells[48801] = {duration = 15, isSuccess = true} -- Exorcism
+    spells[20216] = {duration = 120, isSuccess = true} -- Divine Favor
+    spells[48827] = {duration = 30, isSuccess = true} -- Avenger's Shield
     -- Rogue
-    spells[8643] = {duration = 20} -- Kidney Shot
-    spells[51722] = {duration = 60} -- Dismantle
-    spells[1776] = {duration = 10} -- Gouge
-    spells[1766] = {duration = 10} -- Kick
-    spells[2094] = {duration = 120} -- Blind
-    spells[31224] = {duration = 60} -- Cloak of Shadows
-    spells[57934] = {duration = 180} -- Tricks of the Trade
-    spells[51713] = {duration = 60} -- Shadowdance
-    spells[51690] = {duration = 75} -- Killing Spree
-    spells[13750] = {duration = 180} -- Adrenaline Rush
-    spells[26669] = {duration = {180, 180, 120}, hasOtherDuration=true} -- Evasion
-    spells[11305] = {duration = {180, 180, 120}, hasOtherDuration=true} -- Sprint
-    spells[2094] = {duration = 120} -- Blind
-    spells[26889] = {duration = 120} -- Vanish
-    spells[14185] = {duration = {300, 480}, hasOtherDuration=true, related = {14177, 26889,11305,26669}} -- Preparation
-    spells[14177] = {duration = 180} -- Cold Blood
+    spells[8643] = {duration = 20, isSuccess = true} -- Kidney Shot
+    spells[51722] = {duration = 60, isSuccess = true} -- Dismantle
+    spells[1776] = {duration = 10, isSuccess = true} -- Gouge
+    spells[1766] = {duration = 10, isSuccess = true} -- Kick
+    spells[2094] = {duration = 120, isSuccess = true} -- Blind
+    spells[31224] = {duration = 60, isSuccess = true} -- Cloak of Shadows
+    spells[57934] = {duration = 180, isSuccess = true} -- Tricks of the Trade
+    spells[51713] = {duration = 60, isSuccess = true} -- Shadowdance
+    spells[51690] = {duration = 75, isSuccess = true} -- Killing Spree
+    spells[13750] = {duration = 180, isSuccess = true} -- Adrenaline Rush
+    spells[26669] = {duration = {180, 180, 120}, hasOtherDuration=true, isSuccess = true} -- Evasion
+    spells[11305] = {duration = {180, 180, 120}, hasOtherDuration=true, isSuccess = true} -- Sprint
+    spells[2094] = {duration = 120, isSuccess = true} -- Blind
+    spells[26889] = {duration = 120, isSuccess = true} -- Vanish
+    spells[14185] = {duration = {300, 480}, hasOtherDuration=true, related = {14177, 26889,11305,26669}, isSuccess = true} -- Preparation
+    spells[14177] = {duration = 180, isSuccess = true} -- Cold Blood
     -- Priest
-    spells[6346] = {duration = 180} -- Fear Ward
-    spells[33206] = {duration = 144} -- Pain Suppression
-    spells[10060] = {duration = 96} -- Power Infusion
-    spells[48173] = {duration = 120} -- Desperate Prayer
-    spells[64844] = {duration = 480} -- Divine Hymn
-    spells[64904] = {duration = 360} -- Hymn of Hope
-    spells[10890] = {duration = {27, 23}, hasOtherDuration=true} -- Psychic Scream
-    spells[48158] = {duration = 12} -- SW: Death
-    spells[15487] = {duration = 45} -- Silence
-    spells[47585] = {duration = 75} -- Dispresion
-    spells[64044] = {duration = 120} -- Psychic Horror
-    spells[34433] = {duration = {300, 180}, hasOtherDuration=true} -- Shadowfiend
-    spells[586] = {duration = {30, 15}, hasOtherDuration=true} -- Fade
+    spells[6346] = {duration = 180, isSuccess = true} -- Fear Ward
+    spells[33206] = {duration = 144, isSuccess = true} -- Pain Suppression
+    spells[10060] = {duration = 96, isSuccess = true} -- Power Infusion
+    spells[48173] = {duration = 120, isSuccess = true} -- Desperate Prayer
+    spells[64844] = {duration = 480, isSuccess = true} -- Divine Hymn
+    spells[64904] = {duration = 360, isSuccess = true} -- Hymn of Hope
+    spells[10890] = {duration = {27, 23}, hasOtherDuration=true, isSuccess = true} -- Psychic Scream
+    spells[48158] = {duration = 12, isSuccess = true} -- SW: Death
+    spells[15487] = {duration = 45, isSuccess = true} -- Silence
+    spells[47585] = {duration = 75, isSuccess = true} -- Dispresion
+    spells[64044] = {duration = 120, isSuccess = true} -- Psychic Horror
+    spells[34433] = {duration = {300, 180}, hasOtherDuration=true, isSuccess = true} -- Shadowfiend
+    spells[586] = {duration = {30, 15}, hasOtherDuration=true, isSuccess = true} -- Fade
     -- Death Knight
-    spells[47476] = {duration = 120} -- Strangulate
-    spells[45529] = {duration = 60} -- Blood Tap
-    spells[48743] = {duration = 120} -- Death Pact
-    spells[47568] = {duration = 300} -- Empower Rune Weapon
-    spells[49039] = {duration = 120} -- Lichborne
-    spells[47528] = {duration = 10} -- Mind Freeze
-    spells[48792] = {duration = 120} -- Icebound Fortitude
-    spells[48707] = {duration = 45} -- Anti-Magic Shell
-    spells[51052] = {duration = 120} -- Anti-Magic Zone
-    spells[49206] = {duration = 180} -- Summon Gargoyle
-    spells[49560] = {duration = 25} -- Death Grip
-    spells[49203] = {duration = 60} -- Hungering Cold
-    spells[49796] = {duration = 120} -- Deathchill
-    spells[51271] = {duration = 120} -- Unbreakable Armor
+    spells[47476] = {duration = 120, isSuccess = true} -- Strangulate
+    spells[45529] = {duration = 60, isSuccess = true} -- Blood Tap
+    spells[48743] = {duration = 120, isSuccess = true} -- Death Pact
+    spells[47568] = {duration = 300, isSuccess = true} -- Empower Rune Weapon
+    spells[49039] = {duration = 120, isSuccess = true} -- Lichborne
+    spells[47528] = {duration = 10, isSuccess = true} -- Mind Freeze
+    spells[48792] = {duration = 120, isSuccess = true} -- Icebound Fortitude
+    spells[48707] = {duration = 45, isSuccess = true} -- Anti-Magic Shell
+    spells[51052] = {duration = 120, isSuccess = true} -- Anti-Magic Zone
+    spells[49206] = {duration = 180, isSuccess = true} -- Summon Gargoyle
+    spells[49560] = {duration = 25, isSuccess = true} -- Death Grip
+    spells[49203] = {duration = 60, isSuccess = true} -- Hungering Cold
+    spells[49796] = {duration = 120, isSuccess = true} -- Deathchill
+    spells[51271] = {duration = 120, isSuccess = true} -- Unbreakable Armor
     --Mage
-    spells[1953] = {duration = 15} -- Blink
-    spells[2139] = {duration = 24} -- Counterspell
-    spells[66] = {duration = {180, 180, 126}, hasOtherDuration=true} -- Invisibility
-    spells[12051] = {duration = {240, 240, 120}, hasOtherDuration=true} -- Evocation
-    spells[55342] = {duration = 180} -- Mirror Image
+    spells[1953] = {duration = 15, isSuccess = true} -- Blink
+    spells[2139] = {duration = 24, isSuccess = true} -- Counterspell
+    spells[66] = {duration = {180, 180, 126}, hasOtherDuration=true, isSuccess = true} -- Invisibility
+    spells[12051] = {duration = {240, 240, 120}, hasOtherDuration=true, isSuccess = true} -- Evocation
+    spells[55342] = {duration = 180, isSuccess = true} -- Mirror Image
     spells[41425] = {duration = 30, isAura = true} -- Hypothermia
-    spells[12042] = {duration = 84} -- Arcane Power
-    spells[12043] = {duration = 84} -- Presence of Mind
-    spells[42945] = {duration = 30} -- Blast Wave
-    spells[42950] = {duration = 20, ignoreDamage = true} -- Dragon's Breath
-    spells[28682] = {duration = 120} -- Combustion
-    spells[11958] = {duration = 384, related = {44572,42917,42931,43039,12472,31687,45438}} -- COLD SNAP
-    spells[44572] = {duration = 30} -- Deep Freeze
-    spells[42917] = {duration = {25, 20, 20}, hasOtherDuration=true, ignoreDamage = true} -- Frost Nova
-    spells[42931] = {duration = {10, 8, 8}, hasOtherDuration=true} -- Cone of Cold
-    spells[43039] = {duration = 24} -- Ice Barrier
-    spells[12472] = {duration = 144} -- Icy Veins
-    spells[31687] = {duration = 144} -- Summon Water Elemental
-    spells[45438] = {duration = {300, 240, 240}, hasOtherDuration=true} -- Ice Block
+    spells[12042] = {duration = 84, isSuccess = true} -- Arcane Power
+    spells[12043] = {duration = 84, isSuccess = true} -- Presence of Mind
+    spells[42945] = {duration = 30, isSuccess = true} -- Blast Wave
+    spells[42950] = {duration = 20, isSuccess = true} -- Dragon's Breath
+    spells[28682] = {duration = 120, isSuccess = true} -- Combustion
+    spells[11958] = {duration = 384, related = {44572,42917,42931,43039,12472,31687,45438}, isSuccess = true} -- COLD SNAP
+    spells[44572] = {duration = 30, isSuccess = true} -- Deep Freeze
+    spells[42917] = {duration = {25, 20, 20}, hasOtherDuration=true, isSuccess = true} -- Frost Nova
+    spells[42931] = {duration = {10, 8, 8}, hasOtherDuration=true, isSuccess = true} -- Cone of Cold
+    spells[43039] = {duration = 24, isSuccess = true} -- Ice Barrier
+    spells[12472] = {duration = 144, isSuccess = true} -- Icy Veins
+    spells[31687] = {duration = 144, isSuccess = true} -- Summon Water Elemental
+    spells[45438] = {duration = {300, 240, 240}, hasOtherDuration=true, isSuccess = true} -- Ice Block
     -- Warlock
-    spells[47860] = {duration = 120, ignoreDamage = true} -- Death Coil
-    spells[17928] = {duration = 40} -- Howl of Terror
-    spells[48020] = {duration = 30} -- Teleport
-    spells[18708] = {duration = 180} -- Fel Domination
-    spells[61290] = {duration = 15, ignoreDamage = true} -- Shadowflame
-    spells[19647] = {duration = 24} -- Spell Lock
-    spells[59172] = {duration = 12} -- Chaos Bolt
-    spells[17962] = {duration = 10, ignoreDamage = true} -- Conflagrate
-    spells[47847] = {duration = 20, ignoreDamage = true} -- Shadowfury
-    spells[47827] = {duration = 15, ignoreDamage = true} -- Shadowburn
+    spells[47860] = {duration = 120, isSuccess = true} -- Death Coil
+    spells[17928] = {duration = 40, isSuccess = true} -- Howl of Terror
+    spells[48020] = {duration = 30, isSuccess = true} -- Teleport
+    spells[18708] = {duration = 180, isSuccess = true} -- Fel Domination
+    spells[61290] = {duration = 15, isSuccess = true} -- Shadowflame
+    spells[19647] = {duration = 24, isSuccess = true} -- Spell Lock
+    spells[59172] = {duration = 12, isSuccess = true} -- Chaos Bolt
+    spells[17962] = {duration = 10, isSuccess = true} -- Conflagrate
+    spells[47847] = {duration = 20, isSuccess = true} -- Shadowfury
+    spells[47827] = {duration = 15, isSuccess = true} -- Shadowburn
     -- Shaman
-    spells[51514] = {duration = 45} -- Hex
-    spells[57994] = {duration = {5.2, 5, 6}, hasOtherDuration=true} -- Windshear
-    spells[51533] = {duration = 180} -- Feral Spirit
-    spells[8177] = {duration = {15, 13.5, 11.5}, hasOtherDuration=true} -- Grounding Totem
-    spells[32182] = {duration = 300} -- Heroism
-    spells[2825] = {duration = 300} -- Bloodlust
-    spells[30823] = {duration = 60} -- Shamanistic Rage
-    spells[59159] = {duration = 35, ignoreDamage = true} -- Thunderstorm
-    spells[16190] = {duration = 300} -- Mana Tide Totem
-    spells[16188] = {duration = 120} -- Nature's Swiftness
-    spells[55166] = {duration = 180} -- Nature's Force
-    spells[16166] = {duration = 180} -- Elemental Mastery
-    spells[55166] = {duration = 180} -- Tidal Force
+    spells[51514] = {duration = 45, isSuccess = true} -- Hex
+    spells[57994] = {duration = {5.2, 5, 6}, hasOtherDuration=true, isSuccess = true} -- Windshear
+    spells[51533] = {duration = 180, isSuccess = true} -- Feral Spirit
+    spells[8177] = {duration = {15, 13.5, 11.5}, hasOtherDuration=true, isSuccess = true} -- Grounding Totem
+    spells[32182] = {duration = 300, isSuccess = true} -- Heroism
+    spells[2825] = {duration = 300, isSuccess = true} -- Bloodlust
+    spells[30823] = {duration = 60, isSuccess = true} -- Shamanistic Rage
+    spells[59159] = {duration = 35, isSuccess = true} -- Thunderstorm
+    spells[16190] = {duration = 300, isSuccess = true} -- Mana Tide Totem
+    spells[16188] = {duration = 120, isSuccess = true} -- Nature's Swiftness
+    spells[55166] = {duration = 180, isSuccess = true} -- Nature's Force
+    spells[16166] = {duration = 180, isSuccess = true} -- Elemental Mastery
+    spells[55166] = {duration = 180, isSuccess = true} -- Tidal Force
     -- Druid
-    spells[22812] = {duration = 60} -- Barkskin
-    spells[29166] = {duration = 180} -- Innervate
-    spells[53312] = {duration = 60} -- Nature's Grasp
-    spells[22842] = {duration = 180} -- Frenzied Regeneration
-    spells[17116] = {duration = 180} -- Nature's Swiftness
-    spells[48447] = {duration = 480} -- Tranquility
-    spells[8983] = {duration = 60} -- Bash
-    spells[61336] = {duration = 180} -- Survival Instincts
-    spells[16979] = {duration = 15} -- Feral Charge - Bear
-    spells[50213] = {duration = 30} -- Tiger's Fury
-    spells[33831] = {duration = 180} -- Force of Nature
-    spells[53201] = {duration = 60} -- Starfall
-    spells[18562] = {duration = 13} -- Swiftmend
-    spells[50334] = {duration = 180} -- Berserk
-    spells[53227] = {duration = 20} -- Typhoon
-    spells[33357] = {duration = 144} -- Dash
-    spells[5229] = {duration = 60} -- Enrage
+    spells[22812] = {duration = 60, isSuccess = true} -- Barkskin
+    spells[29166] = {duration = 180, isSuccess = true} -- Innervate
+    spells[53312] = {duration = 60, isSuccess = true} -- Nature's Grasp
+    spells[22842] = {duration = 180, isSuccess = true} -- Frenzied Regeneration
+    spells[17116] = {duration = 180, isSuccess = true} -- Nature's Swiftness
+    spells[48447] = {duration = 480, isSuccess = true} -- Tranquility
+    spells[8983] = {duration = 60, isSuccess = true} -- Bash
+    spells[61336] = {duration = 180, isSuccess = true} -- Survival Instincts
+    spells[16979] = {duration = 15, isSuccess = true} -- Feral Charge - Bear
+    spells[50213] = {duration = 30, isSuccess = true} -- Tiger's Fury
+    spells[33831] = {duration = 180, isSuccess = true} -- Force of Nature
+    spells[53201] = {duration = 60, isSuccess = true} -- Starfall
+    spells[18562] = {duration = 13, isSuccess = true} -- Swiftmend
+    spells[50334] = {duration = 180, isSuccess = true} -- Berserk
+    spells[53227] = {duration = 20, isSuccess = true} -- Typhoon
+    spells[33357] = {duration = 144, isSuccess = true} -- Dash
+    spells[5229] = {duration = 60, isSuccess = true} -- Enrage
     spells[69369] = {duration  = 8, isAura = true} -- Predator's Swiftness
     -- Hunter
-    spells[34490] = {duration = 20, ignoreDamage = true} -- Silencing Shot
-    spells[23989] = {duration = 180, related = {34490,3045,34026,53271,19263,781,14311,60202,19503,19574,34600}} -- Readiness
-    spells[3045] = {duration = 300} -- Rapid Fire
-    spells[34026] = {duration = 60} -- Kill Command
-    spells[53271] = {duration = 60} -- Master's Call
-    spells[19263] = {duration = 90} -- Deterrence
-    spells[781] = {duration = {16, 20}, hasOtherDuration=true} -- Disengage
-    spells[14311] = {duration = 28} -- Freezing Trap
-    spells[60202] = {duration = 28} -- Freezing Arrow
-    spells[19503] = {duration = 30, ignoreDamage = true} -- Scatter Shot
-    spells[19574] = {duration = 70.2} -- Bestial Wrath
-    spells[19577] = {duration = 42} -- Intimidation
-    spells[34600] = {duration = 28} -- Snake Trap
+    spells[34490] = {duration = 20, isSuccess = true} -- Silencing Shot
+    spells[23989] = {duration = 180, related = {34490,3045,34026,53271,19263,781,14311,60202,19503,19574,34600}, isSuccess = true} -- Readiness
+    spells[3045] = {duration = 300, isSuccess = true} -- Rapid Fire
+    spells[34026] = {duration = 60, isSuccess = true} -- Kill Command
+    spells[53271] = {duration = 60, isSuccess = true} -- Master's Call
+    spells[19263] = {duration = 90, isSuccess = true} -- Deterrence
+    spells[781] = {duration = {16, 20}, hasOtherDuration=true, isSuccess = true} -- Disengage
+    spells[14311] = {duration = 28, isSuccess = true} -- Freezing Trap
+    spells[60202] = {duration = 28, isSuccess = true} -- Freezing Arrow
+    spells[19503] = {duration = 30, isSuccess = true} -- Scatter Shot
+    spells[19574] = {duration = 70.2, isSuccess = true} -- Bestial Wrath
+    spells[19577] = {duration = 42, isSuccess = true} -- Intimidation
+    spells[34600] = {duration = 28, isSuccess = true} -- Snake Trap
     -- Trinket
-    spells[71607] = {duration = 120} -- Release of Light
+    spells[71607] = {duration = 120, isSuccess = true} -- Release of Light
     -- End
 
     player_spells = {}
     --Player Spells
+    player_spells[57823] = {duration = 5, isSwing = true}
     player_spells[60503] = {duration = 9, isAura = true} -- Taste for Blood
     player_spells[1715] = {duration = 15, isAura = true} -- Hamstring
     player_spells[47486] = {duration = 10, isAura = true} -- Mortal Strike
@@ -251,13 +256,13 @@ local function ZB_InitializeVariables()
     player_spells[53563] = {duration = 60, isAura = true} -- Beacon of Light
     player_spells[54152] = {duration = 60, isAura = true} -- Judgements of the Pure
     player_spells[6940] = {duration = 12, isAura = true} -- Hand of Sacrifice
-    player_spells[48801] = {duration = 15} -- Exorcism
-    player_spells[20271] = {duration = 10} -- Judgement of Light
-    player_spells[53407] = {duration = 10} -- Judgement of Justice
-    player_spells[48817] = {duration = 30, ignoreDamage = true} -- Holy Wrath
-    player_spells[10326] = {duration = 8} -- Turn Evil
-    player_spells[48806] = {duration = 6, ignoreDamage = true} -- Hammer of Wrath
-    player_spells[48819] = {duration = 8} -- Consecration
+    player_spells[48801] = {duration = 15, isSuccess = true} -- Exorcism
+    player_spells[20271] = {duration = 10, isSuccess = true} -- Judgement of Light
+    player_spells[53407] = {duration = 10, isSuccess = true} -- Judgement of Justice
+    player_spells[48817] = {duration = 30, isSuccess = true} -- Holy Wrath
+    player_spells[10326] = {duration = 8, isSuccess = true} -- Turn Evil
+    player_spells[48806] = {duration = 6, isSuccess = true} -- Hammer of Wrath
+    player_spells[48819] = {duration = 8, isSuccess = true} -- Consecration
     --End
 
     specs_by_guid = {}
@@ -494,9 +499,11 @@ local function ZB_EventType(combatEvent, bar, length, id, line, srcGUID, dstGUID
             return ZB_AddIcon(bar, length, id, line, true, srcGUID)
         end
     else
-        if combatEvent == "SPELL_DAMAGE" and not line[id].ignoreDamage then
+        if combatEvent == "SPELL_DAMAGE" and line[id].isDamage then
             return ZB_AddIcon(bar, length, id, line, false, srcGUID)
-        elseif combatEvent == "SPELL_CAST_SUCCESS" and not line[id].ignoreSuccess then
+        elseif combatEvent == "SPELL_CAST_SUCCESS" and line[id].isSuccess then
+            return ZB_AddIcon(bar, length, id, line, false, srcGUID)
+        elseif (combatEvent == "SWING_MISSED" and line[id].isSwing) then
             return ZB_AddIcon(bar, length, id, line, false, srcGUID)
         end
     end
@@ -509,8 +516,7 @@ local function ZB_CombatLog(timestamp, combatEvent, srcGUID, srcName, srcFlags, 
         print(name)
         print(combatEvent)
     end
-    if clearing then
-        print("Clearing data.")
+    if clearing and disabled then
         return
     end
     if special_spells[id] then
@@ -533,6 +539,12 @@ local function ZB_CombatLog(timestamp, combatEvent, srcGUID, srcName, srcFlags, 
                 length_party = ZB_EventType(combatEvent, party, length_party, id, player_spells, srcGUID, dstGUID)
             else
                 length_player = ZB_EventType(combatEvent, player, length_player, id, player_spells, srcGUID, dstGUID)
+            end
+        elseif combatEvent == "SWING_MISSED" and not id == "MISS" then
+            for swing_id in pairs(player_spells) do
+                if player_spells[swing_id].isSwing then
+                    length_player = ZB_EventType(combatEvent, player, length_player, swing_id, player_spells, playerGUID)
+                end
             end
         end
     elseif spells[id] then  
@@ -620,6 +632,8 @@ local function ZB_Commands(msg)
         end
     elseif msg == "clear" then
         ZB_EnteringWorld()
+    elseif msg == "disable" then
+        disabled = not disabled
     else
         print("You can only 'clear' and 'debug'.")
     end
