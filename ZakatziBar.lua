@@ -516,7 +516,7 @@ local function ZB_CombatLog(timestamp, combatEvent, srcGUID, srcName, srcFlags, 
         print(name)
         print(combatEvent)
     end
-    if clearing and disabled then
+    if clearing or disabled then
         return
     end
     if special_spells[id] then
