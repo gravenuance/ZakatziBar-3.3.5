@@ -4,7 +4,7 @@ local spells_list
 local player_spells_list
 -- Tracks the specs of other players based on spec spells
 local special_spells_list
-local specs_by_GUID_list
+local specs_by_guid_list
 
 -- Number of buttons to spawn per bar
 local total_buttons
@@ -23,7 +23,7 @@ local count_delay_from_start
 -- Size of side of square
 local square_size
 
--- How often OnUpdate runs
+-- How often on_update runs
 local update_interval
 local total_time_elapsed
 
@@ -263,7 +263,7 @@ local function zb_initialize_variables()
     player_spells_list[48819] = {duration = 8, is_success = true} -- Consecration
     --End
 
-    specs_by_GUID_list = {}
+    specs_by_guid_list = {}
     special_spells_list = {}
     special_spells_list[48821] = 1 -- Holy Paladin
     special_spells_list[53563] = 1 -- Holy Paladin
@@ -436,9 +436,9 @@ end
 local function zb_add_icon(bar, length, id, list, refresh, src_guid)
     local duration = 0;
     if list[id].has_other_duration then
-        if specs_by_GUID_list[src_guid] then
-            if (list[id].duration[specs_by_GUID_list[src_guid]]) then
-                duration = list[id].duration[specs_by_GUID_list[src_guid]]
+        if specs_by_guid_list[src_guid] then
+            if (list[id].duration[specs_by_guid_list[src_guid]]) then
+                duration = list[id].duration[specs_by_guid_list[src_guid]]
             end
         else
             duration = list[id].duration[1]
@@ -518,7 +518,7 @@ local function zb_combat_log(timestamp, combat_event, src_guid, src_name, src_fl
         return
     end
     if special_spells_list[id] then
-        specs_by_GUID_list[src_guid] = special_spells_list[id]
+        specs_by_guid_list[src_guid] = special_spells_list[id]
     end
     if id == 14185 or id == 23989 or id == 11958 then
         if bit.band(src_flags, COMBATLOG_OBJECT_REACTION_HOSTILE) > 0 then
@@ -598,8 +598,8 @@ local function zb_initialize_bar(bar, bar_x, bar_y)
 end
 
 local function zb_clear_spec_list()
-    for character in pairs (specs_by_GUID_list) do
-        specs_by_GUID_list[character] = nil
+    for character in pairs (specs_by_guid_list) do
+        specs_by_guid_list[character] = nil
     end
 end
 
