@@ -42,11 +42,12 @@ local are_bars_being_cleared
 
 local is_disabled
 
+local player_class
+
 
 local function zb_initialize_variables()
     player_guid = UnitGUID("player")
-    local _, class_name = UnitClass("player")
-    print(class_name)
+    _, player_class = UnitClass("player")
     player_bar_x = -225
     player_bar_y = -225
     party_bar_x = -225
@@ -237,7 +238,7 @@ local function zb_initialize_variables()
 
     player_spells_list = {}
     --Player Spells
-    player_spells_list[57823] = {duration = 5, isSwing = true}
+    player_spells_list[57823] = {duration = 5, isSwing = true, class = "WARRIOR"}
     player_spells_list[60503] = {duration = 9, is_aura = true} -- Taste for Blood
     player_spells_list[1715] = {duration = 15, is_aura = true} -- Hamstring
     player_spells_list[47486] = {duration = 10, is_aura = true} -- Mortal Strike
@@ -514,7 +515,7 @@ local function zb_combat_log(timestamp, combat_event, src_guid, src_name, src_fl
         print(name)
         print(combat_event)
     end
-    if are_bars_being_cleared and is_disabled then
+    if are_bars_being_cleared or is_disabled then
         return
     end
     if special_spells_list[id] then
@@ -532,7 +533,7 @@ local function zb_combat_log(timestamp, combat_event, src_guid, src_name, src_fl
         end
     end
     if src_guid == player_guid then
-        if player_spells_list[id] then 
+        if player_spells_list[id] and (player_spells_list[id].class == nil or player_spells_list[id].class == player_class) then 
             if bit.band(dst_flags, COMBATLOG_OBJECT_AFFILIATION_PARTY) > 0 then
                 length_of_party_bar = zb_event_type(combat_event, party_bar, length_of_party_bar, id, player_spells_list, src_guid)
             else
@@ -648,14 +649,14 @@ local function zb_on_load(self)
         SLASH_ZAKATZIBAR1 = "/zb"
 end
 
-local eventhandler = {
+local event_handler = {
     ["PLAYER_LOGIN"] = function(self) zb_on_load(self) end,
     ["PLAYER_ENTERING_WORLD"] = function(self) zb_entering_world(self) end,
     ["COMBAT_LOG_EVENT_UNFILTERED"] = function(self,...) zb_combat_log(...) end,
 }
 
 local function ZB_OnEvent(self,event,...)
-	eventhandler[event](self,...)
+	event_handler[event](self,...)
 end
 
 if not zb_frame then 
