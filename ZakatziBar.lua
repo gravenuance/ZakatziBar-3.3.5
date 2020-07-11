@@ -689,6 +689,7 @@ local function zb_on_load(self)
         self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
         self:RegisterEvent("PLAYER_ENTERING_WORLD")
         self:RegisterEvent("PARTY_MEMBERS_CHANGED") -- GROUP_ROSTER_UPDATE
+        self:RegisterEvent("RAID_ROSTER_UPDATE")
         zb_initialize_variables()
         player_bar = zb_initialize_bar(player_bar, player_bar_x, player_bar_y)
         party_bar = zb_initialize_bar(party_bar, party_bar_x, party_bar_y)
@@ -702,6 +703,7 @@ local event_handler = {
     ["PLAYER_ENTERING_WORLD"] = function(self) zb_entering_world(self) end,
     ["COMBAT_LOG_EVENT_UNFILTERED"] = function(self,...) zb_combat_log(...) end,
     ["PARTY_MEMBERS_CHANGED"] = function(self) zb_remove_party_or_raid_member_icons() end,
+    ["RAID_ROSTER_UPDATE"] = function(self) zb_remove_party_or_raid_member_icons() end,
 }
 
 local function zb_on_event(self,event,...)
