@@ -657,9 +657,11 @@ end
 local function zb_remove_party_or_raid_member_icons()
     for member_id in pairs(raid_list) do
         local index = 0
-        while index < length_of_party_bar do
-            if (party_bar[index].src_guid == member_id) or (party_bar[index].src_guid == player_guid and party_bar[index].dst_guid == member_id) then
-                length_of_party_bar = zb_remove_icon(party_bar, length_of_party_bar, index, false)
+        if not zb_is_in_party_or_raid(member_id) then
+            while index < length_of_party_bar do
+                if (party_bar[index].src_guid == member_id) or (party_bar[index].src_guid == player_guid and party_bar[index].dst_guid == member_id) then
+                    length_of_party_bar = zb_remove_icon(party_bar, length_of_party_bar, index, false)
+                end
             end
         end
     end
