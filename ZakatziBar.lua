@@ -44,13 +44,9 @@ local is_disabled
 
 local player_class
 
-local raid_list
-
-
 local function zb_initialize_variables()
     player_guid = UnitGUID("player")
     _, player_class = UnitClass("player")
-    raid_list = {}
     player_bar_x = -225
     player_bar_y = -225
     party_bar_x = -225
@@ -526,11 +522,10 @@ local function zb_event_type(combat_event, bar, length, id, line, src_guid, dst_
 end
 
 local function zb_is_in_party_or_raid(guid)
-    if (UnitInParty(guid) or UnitInRaid(guid)) and not guid == player_guid  then
-        if not raid_list[guid] then
-            raid_list[guid] = true
-        end
-        return true   
+    local index = 0
+    while index < 5 do
+        if (UnitGUID("party" .. index) == guid) then
+            return true
     end
     return false
 end
@@ -654,16 +649,13 @@ local function zb_entering_world()
     are_bars_being_cleared = false
 end
 
-local function zb_remove_party_or_raid_member_icons()
-    for member_id in pairs(raid_list) do
-        local index = 0
-        if not zb_is_in_party_or_raid(member_id) then
-            while index < length_of_party_bar do
-                if (party_bar[index].src_guid == member_id) or (party_bar[index].src_guid == player_guid and party_bar[index].dst_guid == member_id) then
-                    length_of_party_bar = zb_remove_icon(party_bar, length_of_party_bar, index, false)
-                end
-            end
+local function zb_remove_ex_party_member_icons()
+    local index = 0
+    while index < length_of_party_bar do
+        if (not zb_is_in_party(party_bar[index].src_guid)) then
+            length_of_party_bar = zb_remove_icon(party_bar, length_of_party_bar, index, false)
         end
+        index = index + 1
     end
 end
 
@@ -689,7 +681,6 @@ local function zb_on_load(self)
         self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
         self:RegisterEvent("PLAYER_ENTERING_WORLD")
         self:RegisterEvent("PARTY_MEMBERS_CHANGED") -- GROUP_ROSTER_UPDATE
-        self:RegisterEvent("RAID_ROSTER_UPDATE")
         zb_initialize_variables()
         player_bar = zb_initialize_bar(player_bar, player_bar_x, player_bar_y)
         party_bar = zb_initialize_bar(party_bar, party_bar_x, party_bar_y)
@@ -702,8 +693,7 @@ local event_handler = {
     ["PLAYER_LOGIN"] = function(self) zb_on_load(self) end,
     ["PLAYER_ENTERING_WORLD"] = function(self) zb_entering_world(self) end,
     ["COMBAT_LOG_EVENT_UNFILTERED"] = function(self,...) zb_combat_log(...) end,
-    ["PARTY_MEMBERS_CHANGED"] = function(self) zb_remove_party_or_raid_member_icons() end,
-    ["RAID_ROSTER_UPDATE"] = function(self) zb_remove_party_or_raid_member_icons() end,
+    ["PARTY_MEMBERS_CHANGED"] = function(self) zb_remove_ex_party_member_icons() end,
 }
 
 local function zb_on_event(self,event,...)
