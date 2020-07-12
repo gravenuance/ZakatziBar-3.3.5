@@ -521,11 +521,13 @@ local function zb_event_type(combat_event, bar, length, id, line, src_guid, dst_
     return length
 end
 
-local function zb_is_in_party_or_raid(guid)
-    local index = 0
+local function zb_is_in_party(guid)
+    local index = 1
     while index < 5 do
         if (UnitGUID("party" .. index) == guid) then
             return true
+        end
+        index = index + 1
     end
     return false
 end
@@ -548,7 +550,7 @@ local function zb_combat_log(timestamp, combat_event, src_guid, src_name, src_fl
             for related_id in pairs(spells_list[spell_id].related) do
                 length_of_hostile_bar = zb_remove_icon(hostile_bar, length_of_hostile_bar, related_id, true, src_guid)
             end
-        elseif zb_is_in_party_or_raid(src_guid) then
+        elseif zb_is_in_party(src_guid) then
             for related_id in pairs(spells_list[spell_id].related) do
                 length_of_party_bar = zb_remove_icon(party_bar, length_of_party_bar, related_id, true, src_guid)
             end
@@ -556,7 +558,7 @@ local function zb_combat_log(timestamp, combat_event, src_guid, src_name, src_fl
     end
     if bit.band(src_flags, COMBATLOG_OBJECT_AFFILIATION_MINE) > 0 then
         if player_spells_list[spell_id] then 
-            if zb_is_in_party_or_raid(dst_guid) then
+            if zb_is_in_party(dst_guid) then
                 length_of_party_bar = zb_event_type(combat_event, party_bar, length_of_party_bar, spell_id, player_spells_list, src_guid, dst_guid)
             else
                 length_of_player_bar = zb_event_type(combat_event, player_bar, length_of_player_bar, spell_id, player_spells_list, src_guid)
@@ -576,7 +578,7 @@ local function zb_combat_log(timestamp, combat_event, src_guid, src_name, src_fl
     elseif spells_list[spell_id] then  
         if bit.band(src_flags, COMBATLOG_OBJECT_REACTION_HOSTILE) > 0 then
             length_of_hostile_bar = zb_event_type(combat_event, hostile_bar, length_of_hostile_bar, spell_id, spells_list, src_guid)
-        elseif zb_is_in_party_or_raid(src_guid) then
+        elseif zb_is_in_party(src_guid) then
             length_of_party_bar = zb_event_type(combat_event, party_bar, length_of_party_bar, spell_id, spells_list, src_guid)
         end
     end
@@ -650,10 +652,16 @@ local function zb_entering_world()
 end
 
 local function zb_remove_ex_party_member_icons()
-    local index = 0
+    local index = 1
     while index < length_of_party_bar do
-        if (not zb_is_in_party(party_bar[index].src_guid) or (party_bar[index].dst_guid and not zb_is_in_party(party_bar[index].dst_guid))) then
-            length_of_party_bar = zb_remove_icon(party_bar, length_of_party_bar, index, false)
+        if (party_bar[index]["src_guid"]) then
+            if zb_is_in_party(party_bar[index].src_guid) then
+                length_of_party_bar = zb_remove_icon(party_bar, length_of_party_bar, index, false)
+            end
+        elseif (party_bar[index]["dst_guid"]) then
+            if zb_is_in_party(party_bar[index].dst_guid) then
+                length_of_party_bar = zb_remove_icon(party_bar, length_of_party_bar, index, false)
+            end
         end
         index = index + 1
     end
