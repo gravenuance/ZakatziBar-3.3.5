@@ -485,6 +485,8 @@ local function zb_add_icon(bar, length, id, list, src_guid, dst_guid)
     if length < total_buttons then
         if dst_guid then
             bar[length].dst_guid = dst_guid
+        else
+            bar[length].dst_guid = nil
         end
         bar[length].src_guid = src_guid
         bar[length].duration = duration
