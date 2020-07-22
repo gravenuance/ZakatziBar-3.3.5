@@ -5,6 +5,8 @@ local player_spells_list
 -- Tracks the specs of other players based on spec spells
 local special_spells_list
 local specs_by_guid_list
+-- Track all or target/focus
+local all
 
 -- Number of buttons to spawn per bar
 local total_icons_per_bar
@@ -46,6 +48,8 @@ local function zb_initialize_variables()
     player_guid = UnitGUID("player")
     _, player_class = UnitClass("player")
 
+    all = true
+
     player_bar_x = -225
     player_bar_y = -225
     party_bar_x = -225
@@ -53,6 +57,8 @@ local function zb_initialize_variables()
     hostile_bar_x = -225
     hostile_bar_y = -325
     square_size = 45
+
+    queued_spells = {}
 
     is_disabled = false
     is_debugging = false
@@ -559,12 +565,12 @@ end
 
 local function zb_combat_log(timestamp, combat_event, src_guid, src_name, src_flags, dst_guid, dst_name, dst_flags, spell_id, spell_name)
     count_delay_from_start = GetTime()
-    if is_debugging and (src_guid == (player_guid or UnitGUID("target") or dst_guid == (player_guid or UnitGUID("target")))) then
+    if is_debugging and (src_guid == (player_guid or UnitGUID("target"))) then
         print(spell_id)
         print(spell_name)
         print(combat_event)
     end
-    if is_disabled then
+    if is_disabled or (not all and src_guid == (player_guid or UnitGUID("target"))) then
         return
     end
     if special_spells_list[spell_id] then
@@ -723,8 +729,10 @@ local function zb_commands(sub_string)
         zb_clear_spec_list()
     elseif sub_string == "disable" then
         is_disabled = not is_disabled
+    elseif sub_string == "all" then
+        all = not all
     else
-        print("You can only 'clear', 'debug' and 'disable'.")
+        print("Available commands: Debug, clear, disable, all.")
     end
 end
 
