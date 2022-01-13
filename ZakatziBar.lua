@@ -129,8 +129,9 @@ local function zb_initialize_variables()
     spells_list[11305] = {duration = {180, 180, 120}, has_other_duration=true, is_success = true} -- Sprint
     spells_list[2094] = {duration = 120, is_success = true} -- Blind
     spells_list[26889] = {duration = 120, is_success = true} -- Vanish
-    spells_list[14185] = {duration = {300, 480}, has_other_duration=true, related = {14177, 26889,11305,26669}, is_success = true} -- Preparation
+    spells_list[14185] = {duration = {300, 480}, has_other_duration=true, related = {1766,51722, 14177, 26889,11305,26669, 36554}, is_success = true} -- Preparation
     spells_list[14177] = {duration = 180, is_success = true} -- Cold Blood
+    spells_list[36554] = {duration = 30, is_success= true} -- Shadowstep
     -- Priest
     spells_list[6346] = {duration = 180, is_success = true} -- Fear Ward
     spells_list[33206] = {duration = 144, is_success = true} -- Pain Suppression
@@ -268,6 +269,8 @@ local function zb_initialize_variables()
     player_spells_list[10326] = {duration = 8, is_success = true} -- Turn Evil
     player_spells_list[48806] = {duration = 6, is_success = true} -- Hammer of Wrath
     player_spells_list[48819] = {duration = 8, is_success = true} -- Consecration
+    player_spells_list[51713] = {duration = 8, is_aura = true} -- Shadowdance
+    player_spells_list[1766] = {duration = 10, is_success = true} -- Kick
     --End
 
     specs_by_guid_list = {}
