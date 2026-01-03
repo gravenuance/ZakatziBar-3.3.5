@@ -7,7 +7,7 @@ _G[addonName]          = ZB
 -- State
 ------------------------------------------------------------------------
 
-local squareSize       = 45
+local squareSize       = 32
 local totalIconsPerBar = 15
 
 ZB.frame               = ZB.frame or CreateFrame("Frame", "ZakatziBarFrame", UIParent)
@@ -415,15 +415,23 @@ function ZB:CreateBar(key)
         local icon = CreateFrame("Frame", nil, bar)
         icon:SetSize(squareSize, squareSize)
         icon:SetPoint("LEFT", bar, "LEFT", (i - 1) * (squareSize + 5), 0)
-        icon:SetFrameStrata("LOW")
+        icon:SetFrameStrata("MEDIUM")
 
-        local tex = icon:CreateTexture(nil, "BACKGROUND")
+        -- Black border background
+        local border = icon:CreateTexture(nil, "BACKGROUND")
+        border:SetPoint("TOPLEFT", icon, "TOPLEFT", -1, 1)
+        border:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", 1, -1)
+        border:SetTexture(0, 0, 0, 1) -- r, g, b, a in 0–1 on 3.3.5
+        icon.border = border
+
+        local tex = icon:CreateTexture(nil, "ARTWORK")
         tex:SetAllPoints()
-        tex:SetTexCoord(0.07, 0.9, 0.07, 0.90)
+        tex:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+        icon.texture = tex
 
         local cd = CreateFrame("Cooldown", nil, icon, "CooldownFrameTemplate")
         cd:SetAllPoints()
-        cd:SetFrameStrata("MEDIUM")
+        cd:SetFrameStrata("HIGH")
         cd.noomnicc = true
         cd.noCooldownCount = true
 
@@ -757,32 +765,41 @@ local function ClearAll()
     end
     wipe(ZB.specByGUID)
 end
+local function cprint(msg, arg1)
+    if arg1 == nil then
+        arg1 = ""
+    else
+        arg1 = " " .. tostring(arg1)
+    end
+    DEFAULT_CHAT_FRAME:AddMessage("|cFF66CCFF" .. tostring(msg) .. arg1 .. "|r")
+end
 
 local function OnSlash(msg)
     msg = msg and msg:lower() or ""
     if msg == "debug" then
         ZB.isDebug = not ZB.isDebug
-        print("ZakatziBar debug:", ZB.isDebug and "ON" or "OFF")
+        cprint("ZakatziBar debug:", ZB.isDebug and "ON" or "OFF")
     elseif msg == "clear" then
         ClearAll()
-        print("ZakatziBar: cleared bars.")
+        cprint("ZakatziBar: cleared bars.")
     elseif msg == "disable" then
         ZB.isDisabled = not ZB.isDisabled
-        print("ZakatziBar:", ZB.isDisabled and "DISABLED" or "ENABLED")
+        cprint("ZakatziBar:", ZB.isDisabled and "DISABLED" or "ENABLED")
     elseif msg == "all" then
         ZB.trackAll = not ZB.trackAll
-        print("ZakatziBar: trackAll =", ZB.trackAll and "ON" or "OFF")
+        cprint("ZakatziBar: trackAll =", ZB.trackAll and "ON" or "OFF")
     else
-        print("ZakatziBar commands:")
-        print("/zb debug   - toggle debug prints")
-        print("/zb clear   - clear all bars")
-        print("/zb disable - toggle tracking")
-        print("/zb all     - toggle tracking all sources vs others only")
+        cprint("ZakatziBar commands:")
+        cprint("/zb debug   - toggle debug prints")
+        cprint("/zb clear   - clear all bars")
+        cprint("/zb disable - toggle tracking")
+        cprint("/zb all     - toggle tracking all sources vs others only")
     end
 end
 
 local function OnEvent(self, event, ...)
     if event == "PLAYER_LOGIN" then
+        cprint("ZakatziBar loaded. Type /zb for commands.")
         InitSpellData()
         for key in pairs(ZB.bars) do
             ZB:CreateBar(key)
