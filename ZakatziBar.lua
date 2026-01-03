@@ -1,8 +1,5 @@
 local addonName, ZB    = ...
-
-ZB                     = ZB or {}
-_G[addonName]          = ZB
-
+ZB                     = ZB or _G[addonName] or {}
 ------------------------------------------------------------------------
 -- State
 ------------------------------------------------------------------------
@@ -14,28 +11,91 @@ ZB.frame               = ZB.frame or CreateFrame("Frame", "ZakatziBarFrame", UIP
 ZB.isDebug             = false
 ZB.isDisabled          = false
 ZB.trackAll            = true
-
 ZB.updateInterval      = 0.1
 ZB.elapsed             = 0
-
 ZB.playerGUID          = UnitGUID("player")
-_, ZB.playerClass      = UnitClass("player")
-
+ZB.playerClass         = select(2, UnitClass("player"))
 ZB.specByGUID          = ZB.specByGUID or {}
 
-ZB.bars                = {
-    player  = { x = -225, y = -225, icons = {}, length = 1 },
-    party   = { x = -225, y = -275, icons = {}, length = 1 },
-    hostile = { x = -225, y = -325, icons = {}, length = 1 },
+-- Simple saved variables table for position and lock
+ZakatziBarDB           = ZakatziBarDB or {}
+ZakatziBarDB.lock      = (ZakatziBarDB.lock ~= nil) and ZakatziBarDB.lock or false
+ZakatziBarDB.point     = ZakatziBarDB.point or "CENTER"
+ZakatziBarDB.relPoint  = ZakatziBarDB.relPoint or "CENTER"
+ZakatziBarDB.x         = ZakatziBarDB.x or 0
+ZakatziBarDB.y         = ZakatziBarDB.y or 0
+
+-- Bars config: y is vertical offset from anchor
+ZB.bars                = ZB.bars or {
+    player  = { x = ZakatziBarDB.x, y = ZakatziBarDB.y + 40, icons = {}, length = 1 },
+    party   = { x = ZakatziBarDB.x, y = ZakatziBarDB.y, icons = {}, length = 1 },
+    hostile = { x = ZakatziBarDB.x, y = ZakatziBarDB.y - 40, icons = {}, length = 1 },
 }
 
+
+ZB.anchor = ZB.anchor or CreateFrame("Frame", "ZakatziBarAnchor", UIParent)
+ZB.anchor:SetSize(220, 40)
+ZB.anchor:SetMovable(true)
+ZB.anchor:SetClampedToScreen(true)
+
+local anchorTex = ZB.anchor:CreateTexture(nil, "BACKGROUND")
+anchorTex:SetAllPoints()
+anchorTex:SetColorTexture(0, 0, 0, 0.4)
+
+local anchorText = ZB.anchor:CreateFontString(nil, "OVERLAY")
+anchorText:SetFont(STANDARD_TEXT_FONT, 14, "OUTLINE")
+anchorText:SetPoint("CENTER")
+anchorText:SetText("ZakatziBar")
+
+local function ZB_ApplyAnchorPosition()
+    print("Applying anchor position:", ZakatziBarDB.point, ZakatziBarDB.relPoint, ZakatziBarDB.x, ZakatziBarDB.y)
+    ZB.anchor:ClearAllPoints()
+    ZB.anchor:SetPoint(ZakatziBarDB.point or "CENTER", UIParent,
+        ZakatziBarDB.relPoint or "CENTER",
+        ZakatziBarDB.x or 0, ZakatziBarDB.y or 0)
+end
+
+local function ZB_SaveAnchorPosition()
+    local point, _, relPoint, x, y = ZB.anchor:GetPoint()
+    print("Saving anchor position:", point, relPoint, x, y)
+    ZakatziBarDB.point, ZakatziBarDB.relPoint, ZakatziBarDB.x, ZakatziBarDB.y = point, relPoint, x, y
+    print("Saved anchor position:", ZakatziBarDB.point, ZakatziBarDB.relPoint, ZakatziBarDB.x, ZakatziBarDB.y)
+end
+
+ZB.anchor:SetScript("OnMouseDown", function(self, button)
+    if button == "LeftButton" and not ZakatziBarDB.lock then
+        self:StartMoving()
+    end
+end)
+
+ZB.anchor:SetScript("OnMouseUp", function(self, button)
+    if button == "LeftButton" then
+        self:StopMovingOrSizing()
+        ZB_SaveAnchorPosition()
+    end
+end)
+
+local function ZB_UpdateAnchorVisibility()
+    if ZakatziBarDB.lock then
+        ZB.anchor:EnableMouse(false)
+        -- Keep it shown so children (bars) remain visible
+        anchorTex:Hide()  -- or hide your black texture
+        anchorText:Hide() -- Hide visual cue while locked
+    else
+        ZB.anchor:EnableMouse(true)
+        -- Re‑enable visual cue while unlocked
+        anchorTex:Show()  -- or show your black texture
+        anchorText:Show() -- Show visual cue while unlocked
+        -- if you removed the backdrop/texture, recreate or show it here
+    end
+end
 ------------------------------------------------------------------------
 -- Spell Data (copied from old file)
 ------------------------------------------------------------------------
 
-local spells           = {}
-local playerSpells     = {}
-local specialSpells    = {}
+local spells        = {}
+local playerSpells  = {}
+local specialSpells = {}
 
 local function InitSpellData()
     -- Warrior
@@ -403,12 +463,15 @@ end
 
 function ZB:CreateBar(key)
     local cfg = self.bars[key]
-    local bar = CreateFrame("Frame", nil, UIParent)
+    local bar = CreateFrame("Frame", nil, ZB.anchor) -- parent can be anchor
     bar:SetSize(squareSize * 4, squareSize)
-    bar:SetPoint("CENTER", UIParent, "CENTER", cfg.x, cfg.y)
+
+    -- Attach relative to the anchor, stacked by cfg.y
+    bar:SetPoint("TOP", ZB.anchor, "TOP", cfg.x, cfg.y)
+
     bar:SetClampedToScreen(true)
-    bar.icons  = {}
-    cfg.frame  = bar
+    bar.icons = {}
+    cfg.frame = bar
     cfg.length = 1
 
     for i = 1, totalIconsPerBar do
@@ -421,13 +484,24 @@ function ZB:CreateBar(key)
         local border = icon:CreateTexture(nil, "BACKGROUND")
         border:SetPoint("TOPLEFT", icon, "TOPLEFT", -1, 1)
         border:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", 1, -1)
-        border:SetTexture(0, 0, 0, 1) -- r, g, b, a in 0–1 on 3.3.5
-        icon.border = border
+        local br, bg, bb = 0, 0, 0 -- default black
+
+        if key == "party" then
+            -- party bar icons = blue
+            br, bg, bb = 0, 0.4, 1
+        elseif key == "hostile" then
+            -- hostile bar icons = red
+            br, bg, bb = 1, 0, 0
+        elseif key == "player" then
+            -- player bar icons = black (already default, but explicit)
+            br, bg, bb = 0, 0, 0
+        end
+
+        border:SetTexture(br, bg, bb, 1)
 
         local tex = icon:CreateTexture(nil, "ARTWORK")
         tex:SetAllPoints()
         tex:SetTexCoord(0.1, 0.9, 0.1, 0.9)
-        icon.texture = tex
 
         local cd = CreateFrame("Cooldown", nil, icon, "CooldownFrameTemplate")
         cd:SetAllPoints()
@@ -451,6 +525,7 @@ function ZB:CreateBar(key)
         fadeIn:SetOrder(2)
         ag:SetLooping("REPEAT")
 
+        icon.border    = border
         icon.texture   = tex
         icon.cd        = cd
         icon.text      = text
@@ -724,12 +799,13 @@ local function PrunePartyIcons()
     end
 end
 local function OnCombatLog(...)
-    local _, subEvent, _, srcName, srcGUID, srcFlags,
-    dstName, dstGUID, spellID, spellName, _ = ...
+    local _, subEvent, srcGUID, srcName, srcFlags, dstGUID,
+    dstName, dstFlags, spellID, spellName = ...
     if ZB.isDebug and srcGUID == (ZB.playerGUID or UnitGUID("target")) then
         print(spellID, spellName, subEvent)
     end
-
+    --print("Combat log event:", subEvent, "spellID:", spellID, "srcGUID:", srcGUID, "dstGUID:", dstGUID, "srcFlags:",
+    --    srcFlags, "srcName:", srcName, "dstName:", dstName)
     if ZB.isDisabled or (not ZB.trackAll and srcGUID == (ZB.playerGUID or UnitGUID("target"))) then
         return
     end
@@ -767,33 +843,60 @@ local function ClearAll()
 end
 local function cprint(msg, arg1)
     if arg1 == nil then
-        arg1 = ""
+        DEFAULT_CHAT_FRAME:AddMessage("|cff66CCFF" .. tostring(msg) .. "|r")
     else
-        arg1 = " " .. tostring(arg1)
+        DEFAULT_CHAT_FRAME:AddMessage("|cff66CCFF" .. tostring(msg) .. " " .. tostring(arg1) .. "|r")
     end
-    DEFAULT_CHAT_FRAME:AddMessage("|cFF66CCFF" .. tostring(msg) .. arg1 .. "|r")
+end
+
+function ZB.Test()
+    ClearAll()
+
+    local samples = { ZB.bars.player, ZB.bars.party, ZB.bars.hostile }
+    local now = GetTime()
+
+    for _, barCfg in ipairs(samples) do
+        for spellID, data in pairs(spells) do
+            AddOrRefreshIcon(barCfg, spellID, spells, ZB.playerGUID, nil)
+            if barCfg.length >= 6 then
+                break
+            end
+        end
+    end
+
+    ZB_UpdateAnchorVisibility()
 end
 
 local function OnSlash(msg)
     msg = msg and msg:lower() or ""
+
     if msg == "debug" then
         ZB.isDebug = not ZB.isDebug
-        cprint("ZakatziBar debug:", ZB.isDebug and "ON" or "OFF")
+        cprint("ZakatziBar debug", ZB.isDebug and "ON" or "OFF")
     elseif msg == "clear" then
         ClearAll()
-        cprint("ZakatziBar: cleared bars.")
+        cprint("ZakatziBar cleared bars.")
     elseif msg == "disable" then
         ZB.isDisabled = not ZB.isDisabled
-        cprint("ZakatziBar:", ZB.isDisabled and "DISABLED" or "ENABLED")
+        cprint("ZakatziBar", ZB.isDisabled and "DISABLED" or "ENABLED")
     elseif msg == "all" then
         ZB.trackAll = not ZB.trackAll
-        cprint("ZakatziBar: trackAll =", ZB.trackAll and "ON" or "OFF")
+        cprint("ZakatziBar trackAll", ZB.trackAll and "ON" or "OFF")
+    elseif msg == "lock" then
+        ZakatziBarDB.lock = not ZakatziBarDB.lock
+        ZB_UpdateAnchorVisibility()
+        ZB_SaveAnchorPosition()
+        cprint("ZakatziBar", ZakatziBarDB.lock and "locked" or "unlocked")
+    elseif msg == "test" then
+        ZB.Test()
     else
         cprint("ZakatziBar commands:")
-        cprint("/zb debug   - toggle debug prints")
-        cprint("/zb clear   - clear all bars")
-        cprint("/zb disable - toggle tracking")
-        cprint("/zb all     - toggle tracking all sources vs others only")
+        cprint("  /zb lock    - toggle movement")
+        cprint("  /zb test    - spawn test icons")
+        cprint("  /zb clear   - clear all bars")
+        cprint("  /zb all     - toggle tracking all sources")
+        cprint("  /zb disable - toggle tracking")
+        cprint("  /zb debug   - toggle debug prints")
     end
 end
 
@@ -801,6 +904,8 @@ local function OnEvent(self, event, ...)
     if event == "PLAYER_LOGIN" then
         cprint("ZakatziBar loaded. Type /zb for commands.")
         InitSpellData()
+        ZB_ApplyAnchorPosition()
+        ZB_UpdateAnchorVisibility()
         for key in pairs(ZB.bars) do
             ZB:CreateBar(key)
         end
