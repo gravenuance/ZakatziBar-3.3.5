@@ -5,7 +5,7 @@ ZB                     = ZB or _G[addonName] or {}
 ------------------------------------------------------------------------
 
 local squareSize       = 32
-local totalIconsPerBar = 15
+local totalIconsPerBar = 5
 
 ZB.frame               = ZB.frame or CreateFrame("Frame", "ZakatziBarFrame", UIParent)
 ZB.isDebug             = false
@@ -410,6 +410,11 @@ local function IsInParty(guid)
             return true
         end
     end
+    for i = 1, 40 do
+        if UnitGUID("raid" .. i) == guid then
+            return true
+        end
+    end
     return false
 end
 
@@ -460,6 +465,13 @@ end
 ------------------------------------------------------------------------
 -- Bar / Icon creation
 ------------------------------------------------------------------------
+
+local function SafeUpdateBar(barCfg, list, name)
+    local ok, err = pcall(ZB.UpdateBar, ZB, barCfg, list)
+    if not ok and ZB.isDebug then
+        print("ZB UpdateBar error in", name, ":", err)
+    end
+end
 
 function ZB:CreateBar(key)
     local cfg = self.bars[key]
@@ -557,7 +569,11 @@ local function RemoveIcon(barCfg, index)
         dst.hasCharges = src.hasCharges
 
         dst.texture:SetTexture(src.texture:GetTexture())
-        dst.cd:SetCooldown(dst.startTime, dst.duration)
+        if dst.startTime and dst.duration then
+            dst.cd:SetCooldown(dst.startTime, dst.duration)
+        else
+            dst.cd:Clear()
+        end
         dst.text:SetText(src.text:GetText())
     end
 
@@ -587,13 +603,15 @@ local function OnUpdate(elapsed)
         (ZB.bars.hostile.length - 1)
 
     if active == 0 then
-        ZB.frame:SetScript("OnUpdate", nil)
         return
     end
 
-    ZB:UpdateBar(ZB.bars.player, playerSpells)
-    ZB:UpdateBar(ZB.bars.hostile, spells)
-    ZB:UpdateBar(ZB.bars.party, spells)
+    --ZB:UpdateBar(ZB.bars.player, playerSpells)
+    --ZB:UpdateBar(ZB.bars.hostile, spells)
+    --ZB:UpdateBar(ZB.bars.party, spells)
+    SafeUpdateBar(ZB.bars.player, playerSpells, "player")
+    SafeUpdateBar(ZB.bars.hostile, spells, "hostile")
+    SafeUpdateBar(ZB.bars.party, spells, "party")
 end
 
 local function AddOrRefreshIcon(barCfg, spellID, list, srcGUID, dstGUID)
@@ -626,28 +644,100 @@ local function AddOrRefreshIcon(barCfg, spellID, list, srcGUID, dstGUID)
     end
 
     -- new
-    if length > totalIconsPerBar then return end
+    -- new (sorted insert by remaining duration, cap to totalIconsPerBar)
+    if length > totalIconsPerBar then
+        -- bar is full; optionally drop the longest one if this is shorter
+        local worstIndex = nil
+        local worstCD = -1
+        for i = 1, length - 1 do
+            local ic = icons[i]
+            if ic.cooldown and ic.cooldown > worstCD then
+                worstCD = ic.cooldown
+                worstIndex = i
+            end
+        end
+        local newDur = GetDurationFor(list, spellID, srcGUID)
+        if not worstIndex or not newDur or newDur >= worstCD then
+            return
+        end
+        RemoveIcon(barCfg, worstIndex)
+        length = barCfg.length
+    end
 
-    local icon      = icons[length]
-    icon.id         = spellID
-    icon.srcGUID    = srcGUID
-    icon.dstGUID    = dstGUID
-    icon.duration   = GetDurationFor(list, spellID, srcGUID)
-    icon.startTime  = now
-    icon.cooldown   = icon.duration
+    local now = GetTime()
+    local newDur = GetDurationFor(list, spellID, srcGUID)
+    if not newDur then return end
+
+    -- find insert position (least to most cooldown)
+    local insertPos = length
+    for i = 1, length - 1 do
+        local ic = icons[i]
+        if ic.cooldown and ic.cooldown > newDur then
+            insertPos = i
+            break
+        end
+    end
+
+    -- shift icons to the right to make room
+    for i = math.min(length - 1, totalIconsPerBar - 1), insertPos, -1 do
+        local src = icons[i]
+        if not src or not src.id then break end -- extra safety
+
+        local dst      = icons[i + 1]
+
+        dst.id         = src.id
+        dst.srcGUID    = src.srcGUID
+        dst.dstGUID    = src.dstGUID
+        dst.duration   = src.duration
+        dst.startTime  = src.startTime
+        dst.cooldown   = src.cooldown
+        dst.hasCharges = src.hasCharges
+
+        dst.texture:SetTexture(src.texture:GetTexture())
+
+        -- only call SetCooldown if both values exist
+        if dst.startTime and dst.duration then
+            dst.cd:SetCooldown(dst.startTime, dst.duration)
+        else
+            dst.cd:Clear() -- optional, or leave untouched
+        end
+
+        dst.text:SetText(src.text:GetText())
+
+        if src.isPlaying then
+            dst.flasher:Play()
+            dst.isPlaying = true
+        else
+            dst.flasher:Stop()
+            dst.isPlaying = false
+        end
+
+        if src:IsShown() then
+            dst:Show()
+        else
+            dst:Hide()
+        end
+    end
+
+    local icon = icons[insertPos]
+    icon.id = spellID
+    icon.srcGUID = srcGUID
+    icon.dstGUID = dstGUID
+    icon.duration = newDur
+    icon.startTime = now
+    icon.cooldown = newDur
     icon.hasCharges = data.has_charges and (data.has_charges - 1) or nil
 
     local _, _, tex = GetSpellInfo(spellID)
     icon.texture:SetTexture(tex or "")
-    icon.cd:SetCooldown(icon.startTime, icon.duration)
 
+    icon.cd:SetCooldown(icon.startTime, icon.duration)
     icon:Show()
     icon.flasher:Play()
     icon.isPlaying = true
     UpdateIconText(icon)
 
-    barCfg.length = length + 1
-    ZB.frame:SetScript("OnUpdate", function(_, elapsed) OnUpdate(elapsed) end)
+    barCfg.length = math.min(length + 1, totalIconsPerBar + 1)
 end
 
 ------------------------------------------------------------------------
@@ -906,6 +996,8 @@ local function OnEvent(self, event, ...)
         InitSpellData()
         ZB_ApplyAnchorPosition()
         ZB_UpdateAnchorVisibility()
+        ZB.isDisabled = false
+        ZB.trackAll = true
         for key in pairs(ZB.bars) do
             ZB:CreateBar(key)
         end
