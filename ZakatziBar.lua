@@ -1,769 +1,805 @@
-local is_debugging
+local addonName, ZB    = ...
 
-local spells_list
-local player_spells_list
--- Tracks the specs of other players based on spec spells
-local special_spells_list
-local specs_by_guid_list
--- Track all or target/focus
-local all
+ZB                     = ZB or {}
+_G[addonName]          = ZB
 
--- Number of buttons to spawn per bar
-local total_icons_per_bar
--- How many active buttons?
-local length_of_hostile_bar
-local length_of_party_bar
-local length_of_player_bar
--- icon bars
-local hostile_bar
-local party_bar
-local player_bar
+------------------------------------------------------------------------
+-- State
+------------------------------------------------------------------------
 
--- Delay for more accurate tracking
-local count_delay_from_start
+local squareSize       = 45
+local totalIconsPerBar = 15
 
--- Size of side of square
-local square_size
+ZB.frame               = ZB.frame or CreateFrame("Frame", "ZakatziBarFrame", UIParent)
+ZB.isDebug             = false
+ZB.isDisabled          = false
+ZB.trackAll            = true
 
--- How often on_update runs
-local update_interval
-local total_time_elapsed
+ZB.updateInterval      = 0.1
+ZB.elapsed             = 0
 
---Player identifier
-local player_guid
+ZB.playerGUID          = UnitGUID("player")
+_, ZB.playerClass      = UnitClass("player")
 
---Bar locations
-local player_bar_x
-local player_bar_y
-local party_bar_x
-local party_bar_y
-local hostile_bar_x
-local hostile_bar_y
+ZB.specByGUID          = ZB.specByGUID or {}
 
-local is_disabled
+ZB.bars                = {
+    player  = { x = -225, y = -225, icons = {}, length = 1 },
+    party   = { x = -225, y = -275, icons = {}, length = 1 },
+    hostile = { x = -225, y = -325, icons = {}, length = 1 },
+}
 
-local player_class
+------------------------------------------------------------------------
+-- Spell Data (copied from old file)
+------------------------------------------------------------------------
 
-local function zb_initialize_variables()
-    player_guid = UnitGUID("player")
-    _, player_class = UnitClass("player")
+local spells           = {}
+local playerSpells     = {}
+local specialSpells    = {}
 
-    all = true
-
-    player_bar_x = -225
-    player_bar_y = -225
-    party_bar_x = -225
-    party_bar_y = -275
-    hostile_bar_x = -225
-    hostile_bar_y = -325
-    square_size = 45
-
-    queued_spells = {}
-
-    is_disabled = false
-    is_debugging = false
-    
-    count_delay_from_start = 0
-    update_interval = 0.1
-    total_time_elapsed = 0
-    
-    total_icons_per_bar = 15
-    length_of_hostile_bar = 1
-    length_of_party_bar = 1
-    length_of_player_bar = 1
-
-    spells_list = {}
-    -- Spells
+local function InitSpellData()
     -- Warrior
-    spells_list[46924] = {duration = 90, is_success = true} -- Bladestorm
-    spells_list[5246] = {duration = 120, is_success = true} -- Intimidating Shout
-    spells_list[20230] = {duration = 300, is_success = true} -- Retaliation
-    spells_list[1719] = {duration = 300, is_success = true} -- Recklessness
-    spells_list[2565] = {duration = {60,40}, has_other_duration=true, is_success = true} -- Shield Block
-    spells_list[871] = {duration = 300, is_success = true} -- Shield Wall
-    spells_list[23920] = {duration = 10, is_success = true} -- Spell Reflection
-    spells_list[3411] = {duration = 30, is_success = true} -- Intervene
-    spells_list[11578] = {duration = {20, 15}, has_other_duration=true, is_success = true} -- Charge
-    spells_list[12328] = {duration = 30, is_success = true} -- Sweeping Strikes
-    spells_list[18499] = {duration = 30, is_success = true} -- Berserker Rage
-    spells_list[55694] = {duration = 180, is_success = true} -- Enraged Regeneration
-    spells_list[20252] = {duration = {25, 30}, has_other_duration=true, is_success = true} -- Intercept
-    spells_list[72] = {duration = 12, is_success = true} -- Shield Bash
-    spells_list[64382] = {duration = 300, is_success = true} -- Shattering Throw
-    spells_list[676] = {duration = {60, 40}, has_other_duration=true, is_success = true} -- Disarm
-    spells_list[6552] = {duration = 10, is_success = true} -- Pummel
-    spells_list[46968] = {duration = 20, is_success = true} -- Shockwave
-    spells_list[12809] = {duration = 30, is_success = true} -- Concussion Blow
-    spells_list[12976] = {duration = 180, is_success = true} -- Last Stand
-    spells_list[60503] = {duration = 9, is_aura = true} -- Taste for Blood
+    spells[46924]        = { duration = 90, is_success = true }                                                                                                    -- Bladestorm
+    spells[5246]         = { duration = 120, is_success = true }                                                                                                   -- Intimidating Shout
+    spells[20230]        = { duration = 300, is_success = true }                                                                                                   -- Retaliation
+    spells[1719]         = { duration = 300, is_success = true }                                                                                                   -- Recklessness
+    spells[2565]         = { duration = { 60, 40 }, has_other_duration = true, is_success = true }                                                                 -- Shield Block
+    spells[871]          = { duration = 300, is_success = true }                                                                                                   -- Shield Wall
+    spells[23920]        = { duration = 10, is_success = true }                                                                                                    -- Spell Reflection
+    spells[3411]         = { duration = 30, is_success = true }                                                                                                    -- Intervene
+    spells[11578]        = { duration = { 20, 15 }, has_other_duration = true, is_success = true }                                                                 -- Charge
+    spells[12328]        = { duration = 30, is_success = true }                                                                                                    -- Sweeping Strikes
+    spells[18499]        = { duration = 30, is_success = true }                                                                                                    -- Berserker Rage
+    spells[55694]        = { duration = 180, is_success = true }                                                                                                   -- Enraged Regeneration
+    spells[20252]        = { duration = { 25, 30 }, has_other_duration = true, is_success = true }                                                                 -- Intercept
+    spells[72]           = { duration = 12, is_success = true }                                                                                                    -- Shield Bash
+    spells[64382]        = { duration = 300, is_success = true }                                                                                                   -- Shattering Throw
+    spells[676]          = { duration = { 60, 40 }, has_other_duration = true, is_success = true }                                                                 -- Disarm
+    spells[6552]         = { duration = 10, is_success = true }                                                                                                    -- Pummel
+    spells[46968]        = { duration = 20, is_success = true }                                                                                                    -- Shockwave
+    spells[12809]        = { duration = 30, is_success = true }                                                                                                    -- Concussion Blow
+    spells[12976]        = { duration = 180, is_success = true }                                                                                                   -- Last Stand
+    spells[60503]        = { duration = 9, is_aura = true }                                                                                                        -- Taste for Blood
     -- Paladin
-    spells_list[25771] = {duration = 120, is_aura = true} -- Forbearance
-    spells_list[54428] = {duration = 60, is_success = true} -- Divine Plea
-    spells_list[48817] = {duration = 30, is_success = true} -- Holy Wrath
-    spells_list[498] = {duration = 180, is_success = true} -- Divine Protection
-    spells_list[64205] = {duration = 120, is_success = true} -- Divine Sacrifice
-    spells_list[6940] = {duration = 120, is_success = true} -- Hand of Sacrifice
-    spells_list[642] = {duration = 300, is_success = true} -- Divine Shield
-    spells_list[10308] = {duration = {40, 60, 30}, has_other_duration=true, is_success = true} -- Hammer of Justice
-    spells_list[1044] = {duration = 25, is_success = true} -- Hand of Freedom
-    spells_list[31884] = {duration = 120, is_success = true} -- Avenging Wrath
-    spells_list[10278] = {duration = 180, is_success = true} -- Hand of Protection
-    spells_list[20066] = {duration = 60, is_success = true} -- Repentance
-    spells_list[31821] = {duration = 120, is_success = true} -- Aura Mastery
-    spells_list[31842] = {duration = 180, is_success = true} -- Divine Illumination
-    spells_list[48801] = {duration = 15, is_success = true} -- Exorcism
-    spells_list[20216] = {duration = 120, is_success = true} -- Divine Favor
-    spells_list[48827] = {duration = 30, is_success = true} -- Avenger's Shield
+    spells[25771]        = { duration = 120, is_aura = true }                                                                                                      -- Forbearance
+    spells[54428]        = { duration = 60, is_success = true }                                                                                                    -- Divine Plea
+    spells[48817]        = { duration = 30, is_success = true }                                                                                                    -- Holy Wrath
+    spells[498]          = { duration = 180, is_success = true }                                                                                                   -- Divine Protection
+    spells[64205]        = { duration = 120, is_success = true }                                                                                                   -- Divine Sacrifice
+    spells[6940]         = { duration = 120, is_success = true }                                                                                                   -- Hand of Sacrifice
+    spells[642]          = { duration = 300, is_success = true }                                                                                                   -- Divine Shield
+    spells[10308]        = { duration = { 40, 60, 30 }, has_other_duration = true, is_success = true }                                                             -- Hammer of Justice
+    spells[1044]         = { duration = 25, is_success = true }                                                                                                    -- Hand of Freedom
+    spells[31884]        = { duration = 120, is_success = true }                                                                                                   -- Avenging Wrath
+    spells[10278]        = { duration = 180, is_success = true }                                                                                                   -- Hand of Protection
+    spells[20066]        = { duration = 60, is_success = true }                                                                                                    -- Repentance
+    spells[31821]        = { duration = 120, is_success = true }                                                                                                   -- Aura Mastery
+    spells[31842]        = { duration = 180, is_success = true }                                                                                                   -- Divine Illumination
+    spells[48801]        = { duration = 15, is_success = true }                                                                                                    -- Exorcism
+    spells[20216]        = { duration = 120, is_success = true }                                                                                                   -- Divine Favor
+    spells[48827]        = { duration = 30, is_success = true }                                                                                                    -- Avenger's Shield
     -- Rogue
-    spells_list[8643] = {duration = 20, is_success = true} -- Kidney Shot
-    spells_list[51722] = {duration = 60, is_success = true} -- Dismantle
-    spells_list[1776] = {duration = 10, is_success = true} -- Gouge
-    spells_list[1766] = {duration = 10, is_success = true} -- Kick
-    spells_list[2094] = {duration = 120, is_success = true} -- Blind
-    spells_list[31224] = {duration = 60, is_success = true} -- Cloak of Shadows
-    spells_list[57934] = {duration = 180, is_success = true} -- Tricks of the Trade
-    spells_list[51713] = {duration = 60, is_success = true} -- Shadowdance
-    spells_list[51690] = {duration = 75, is_success = true} -- Killing Spree
-    spells_list[13750] = {duration = 180, is_success = true} -- Adrenaline Rush
-    spells_list[26669] = {duration = {180, 180, 120}, has_other_duration=true, is_success = true} -- Evasion
-    spells_list[11305] = {duration = {180, 180, 120}, has_other_duration=true, is_success = true} -- Sprint
-    spells_list[2094] = {duration = 120, is_success = true} -- Blind
-    spells_list[26889] = {duration = 120, is_success = true} -- Vanish
-    spells_list[14185] = {duration = {300, 480}, has_other_duration=true, related = {1766,51722, 14177, 26889,11305,26669, 36554}, is_success = true} -- Preparation
-    spells_list[14177] = {duration = 180, is_success = true} -- Cold Blood
-    spells_list[36554] = {duration = 30, is_success= true} -- Shadowstep
+    spells[8643]         = { duration = 20, is_success = true }                                                                                                    -- Kidney Shot
+    spells[51722]        = { duration = 60, is_success = true }                                                                                                    -- Dismantle
+    spells[1776]         = { duration = 10, is_success = true }                                                                                                    -- Gouge
+    spells[1766]         = { duration = 10, is_success = true }                                                                                                    -- Kick
+    spells[2094]         = { duration = 120, is_success = true }                                                                                                   -- Blind
+    spells[31224]        = { duration = 60, is_success = true }                                                                                                    -- Cloak of Shadows
+    spells[57934]        = { duration = 180, is_success = true }                                                                                                   -- Tricks of the Trade
+    spells[51713]        = { duration = 60, is_success = true }                                                                                                    -- Shadowdance
+    spells[51690]        = { duration = 75, is_success = true }                                                                                                    -- Killing Spree
+    spells[13750]        = { duration = 180, is_success = true }                                                                                                   -- Adrenaline Rush
+    spells[26669]        = { duration = { 180, 180, 120 }, has_other_duration = true, is_success = true }                                                          -- Evasion
+    spells[11305]        = { duration = { 180, 180, 120 }, has_other_duration = true, is_success = true }                                                          -- Sprint
+    spells[2094]         = { duration = 120, is_success = true }                                                                                                   -- Blind
+    spells[26889]        = { duration = 120, is_success = true }                                                                                                   -- Vanish
+    spells[14185]        = { duration = { 300, 480 }, has_other_duration = true, related = { 1766, 51722, 14177, 26889, 11305, 26669, 36554 }, is_success = true } -- Preparation
+    spells[14177]        = { duration = 180, is_success = true }                                                                                                   -- Cold Blood
+    spells[36554]        = { duration = 30, is_success = true }                                                                                                    -- Shadowstep
     -- Priest
-    spells_list[6346] = {duration = 180, is_success = true} -- Fear Ward
-    spells_list[33206] = {duration = 144, is_success = true} -- Pain Suppression
-    spells_list[10060] = {duration = 96, is_success = true} -- Power Infusion
-    spells_list[48173] = {duration = 120, is_success = true} -- Desperate Prayer
-    spells_list[64844] = {duration = 480, is_success = true} -- Divine Hymn
-    spells_list[64904] = {duration = 360, is_success = true} -- Hymn of Hope
-    spells_list[10890] = {duration = {27, 23}, has_other_duration=true, is_success = true} -- Psychic Scream
-    spells_list[48158] = {duration = 12, is_success = true} -- SW: Death
-    spells_list[15487] = {duration = 45, is_success = true} -- Silence
-    spells_list[47585] = {duration = 75, is_success = true} -- Dispresion
-    spells_list[64044] = {duration = 120, is_success = true} -- Psychic Horror
-    spells_list[34433] = {duration = {300, 180}, has_other_duration=true, is_success = true} -- Shadowfiend
-    spells_list[586] = {duration = {30, 15}, has_other_duration=true, is_success = true} -- Fade
+    spells[6346]         = { duration = 180, is_success = true }                                                                                                   -- Fear Ward
+    spells[33206]        = { duration = 144, is_success = true }                                                                                                   -- Pain Suppression
+    spells[10060]        = { duration = 96, is_success = true }                                                                                                    -- Power Infusion
+    spells[48173]        = { duration = 120, is_success = true }                                                                                                   -- Desperate Prayer
+    spells[64844]        = { duration = 480, is_success = true }                                                                                                   -- Divine Hymn
+    spells[64904]        = { duration = 360, is_success = true }                                                                                                   -- Hymn of Hope
+    spells[10890]        = { duration = { 27, 23 }, has_other_duration = true, is_success = true }                                                                 -- Psychic Scream
+    spells[48158]        = { duration = 12, is_success = true }                                                                                                    -- SW: Death
+    spells[15487]        = { duration = 45, is_success = true }                                                                                                    -- Silence
+    spells[47585]        = { duration = 75, is_success = true }                                                                                                    -- Dispresion
+    spells[64044]        = { duration = 120, is_success = true }                                                                                                   -- Psychic Horror
+    spells[34433]        = { duration = { 300, 180 }, has_other_duration = true, is_success = true }                                                               -- Shadowfiend
+    spells[586]          = { duration = { 30, 15 }, has_other_duration = true, is_success = true }                                                                 -- Fade
     -- Death Knight
-    spells_list[47476] = {duration = 120, is_success = true} -- Strangulate
-    spells_list[45529] = {duration = 60, is_success = true} -- Blood Tap
-    spells_list[48743] = {duration = 120, is_success = true} -- Death Pact
-    spells_list[47568] = {duration = 300, is_success = true} -- Empower Rune Weapon
-    spells_list[49039] = {duration = 120, is_success = true} -- Lichborne
-    spells_list[47528] = {duration = 10, is_success = true} -- Mind Freeze
-    spells_list[48792] = {duration = 120, is_success = true} -- Icebound Fortitude
-    spells_list[48707] = {duration = 45, is_success = true} -- Anti-Magic Shell
-    spells_list[51052] = {duration = 120, is_success = true} -- Anti-Magic Zone
-    spells_list[49206] = {duration = 180, is_success = true} -- Summon Gargoyle
-    spells_list[49560] = {duration = 25, is_success = true} -- Death Grip
-    spells_list[49203] = {duration = 60, is_success = true} -- Hungering Cold
-    spells_list[49796] = {duration = 120, is_success = true} -- Deathchill
-    spells_list[51271] = {duration = 120, is_success = true} -- Unbreakable Armor
+    spells[47476]        = { duration = 120, is_success = true }                                                                                                   -- Strangulate
+    spells[45529]        = { duration = 60, is_success = true }                                                                                                    -- Blood Tap
+    spells[48743]        = { duration = 120, is_success = true }                                                                                                   -- Death Pact
+    spells[47568]        = { duration = 300, is_success = true }                                                                                                   -- Empower Rune Weapon
+    spells[49039]        = { duration = 120, is_success = true }                                                                                                   -- Lichborne
+    spells[47528]        = { duration = 10, is_success = true }                                                                                                    -- Mind Freeze
+    spells[48792]        = { duration = 120, is_success = true }                                                                                                   -- Icebound Fortitude
+    spells[48707]        = { duration = 45, is_success = true }                                                                                                    -- Anti-Magic Shell
+    spells[51052]        = { duration = 120, is_success = true }                                                                                                   -- Anti-Magic Zone
+    spells[49206]        = { duration = 180, is_success = true }                                                                                                   -- Summon Gargoyle
+    spells[49560]        = { duration = 25, is_success = true }                                                                                                    -- Death Grip
+    spells[49203]        = { duration = 60, is_success = true }                                                                                                    -- Hungering Cold
+    spells[49796]        = { duration = 120, is_success = true }                                                                                                   -- Deathchill
+    spells[51271]        = { duration = 120, is_success = true }                                                                                                   -- Unbreakable Armor
     --Mage
-    spells_list[1953] = {duration = 15, is_success = true} -- Blink
-    spells_list[2139] = {duration = 24, is_success = true} -- Counterspell
-    spells_list[66] = {duration = {180, 180, 126}, has_other_duration=true, is_success = true} -- Invisibility
-    spells_list[12051] = {duration = {240, 240, 120}, has_other_duration=true, is_success = true} -- Evocation
-    spells_list[55342] = {duration = 180, is_success = true} -- Mirror Image
-    spells_list[41425] = {duration = 30, is_aura = true} -- Hypothermia
-    spells_list[12042] = {duration = 84, is_success = true} -- Arcane Power
-    spells_list[12043] = {duration = 84, is_success = true} -- Presence of Mind
-    spells_list[42945] = {duration = 30, is_success = true} -- Blast Wave
-    spells_list[42950] = {duration = 20, is_success = true} -- Dragon's Breath
-    spells_list[28682] = {duration = 120, is_success = true} -- Combustion
-    spells_list[11958] = {duration = 384, related = {44572,42917,42931,43039,12472,31687,45438}, is_success = true} -- COLD SNAP
-    spells_list[44572] = {duration = 30, is_success = true} -- Deep Freeze
-    spells_list[42917] = {duration = {25, 20, 20}, has_other_duration=true, is_success = true} -- Frost Nova
-    spells_list[42931] = {duration = {10, 8, 8}, has_other_duration=true, is_success = true} -- Cone of Cold
-    spells_list[43039] = {duration = 24, is_success = true} -- Ice Barrier
-    spells_list[12472] = {duration = 144, is_success = true} -- Icy Veins
-    spells_list[31687] = {duration = 144, is_success = true} -- Summon Water Elemental
-    spells_list[45438] = {duration = {300, 240, 240}, has_other_duration=true, is_success = true} -- Ice Block
+    spells[1953]         = { duration = 15, is_success = true }                                                                                                    -- Blink
+    spells[2139]         = { duration = 24, is_success = true }                                                                                                    -- Counterspell
+    spells[66]           = { duration = { 180, 180, 126 }, has_other_duration = true, is_success = true }                                                          -- Invisibility
+    spells[12051]        = { duration = { 240, 240, 120 }, has_other_duration = true, is_success = true }                                                          -- Evocation
+    spells[55342]        = { duration = 180, is_success = true }                                                                                                   -- Mirror Image
+    spells[41425]        = { duration = 30, is_aura = true }                                                                                                       -- Hypothermia
+    spells[12042]        = { duration = 84, is_success = true }                                                                                                    -- Arcane Power
+    spells[12043]        = { duration = 84, is_success = true }                                                                                                    -- Presence of Mind
+    spells[42945]        = { duration = 30, is_success = true }                                                                                                    -- Blast Wave
+    spells[42950]        = { duration = 20, is_success = true }                                                                                                    -- Dragon's Breath
+    spells[28682]        = { duration = 120, is_success = true }                                                                                                   -- Combustion
+    spells[11958]        = { duration = 384, related = { 44572, 42917, 42931, 43039, 12472, 31687, 45438 }, is_success = true }                                    -- COLD SNAP
+    spells[44572]        = { duration = 30, is_success = true }                                                                                                    -- Deep Freeze
+    spells[42917]        = { duration = { 25, 20, 20 }, has_other_duration = true, is_success = true }                                                             -- Frost Nova
+    spells[42931]        = { duration = { 10, 8, 8 }, has_other_duration = true, is_success = true }                                                               -- Cone of Cold
+    spells[43039]        = { duration = 24, is_success = true }                                                                                                    -- Ice Barrier
+    spells[12472]        = { duration = 144, is_success = true }                                                                                                   -- Icy Veins
+    spells[31687]        = { duration = 144, is_success = true }                                                                                                   -- Summon Water Elemental
+    spells[45438]        = { duration = { 300, 240, 240 }, has_other_duration = true, is_success = true }                                                          -- Ice Block
     -- Warlock
-    spells_list[47860] = {duration = 120, is_success = true} -- Death Coil
-    spells_list[17928] = {duration = 40, is_success = true} -- Howl of Terror
-    spells_list[48020] = {duration = 30, is_success = true} -- Teleport
-    spells_list[18708] = {duration = 180, is_success = true} -- Fel Domination
-    spells_list[61290] = {duration = 15, is_success = true} -- Shadowflame
-    spells_list[19647] = {duration = 24, is_success = true} -- Spell Lock
-    spells_list[59172] = {duration = 12, is_success = true} -- Chaos Bolt
-    spells_list[17962] = {duration = 10, is_success = true} -- Conflagrate
-    spells_list[47847] = {duration = 20, is_success = true} -- Shadowfury
-    spells_list[47827] = {duration = 15, is_success = true} -- Shadowburn
+    spells[47860]        = { duration = 120, is_success = true }                                                                                                   -- Death Coil
+    spells[17928]        = { duration = 40, is_success = true }                                                                                                    -- Howl of Terror
+    spells[48020]        = { duration = 30, is_success = true }                                                                                                    -- Teleport
+    spells[18708]        = { duration = 180, is_success = true }                                                                                                   -- Fel Domination
+    spells[61290]        = { duration = 15, is_success = true }                                                                                                    -- Shadowflame
+    spells[19647]        = { duration = 24, is_success = true }                                                                                                    -- Spell Lock
+    spells[59172]        = { duration = 12, is_success = true }                                                                                                    -- Chaos Bolt
+    spells[17962]        = { duration = 10, is_success = true }                                                                                                    -- Conflagrate
+    spells[47847]        = { duration = 20, is_success = true }                                                                                                    -- Shadowfury
+    spells[47827]        = { duration = 15, is_success = true }                                                                                                    -- Shadowburn
     -- Shaman
-    spells_list[51514] = {duration = 45, is_success = true} -- Hex
-    spells_list[57994] = {duration = {5.2, 5, 6}, has_other_duration=true, is_success = true} -- Windshear
-    spells_list[51533] = {duration = 180, is_success = true} -- Feral Spirit
-    spells_list[8177] = {duration = {15, 13.5, 11.5}, has_other_duration=true, is_success = true} -- Grounding Totem
-    spells_list[32182] = {duration = 300, is_success = true} -- Heroism
-    spells_list[2825] = {duration = 300, is_success = true} -- Bloodlust
-    spells_list[30823] = {duration = 60, is_success = true} -- Shamanistic Rage
-    spells_list[59159] = {duration = 35, is_success = true} -- Thunderstorm
-    spells_list[16190] = {duration = 300, is_success = true} -- Mana Tide Totem
-    spells_list[16188] = {duration = 120, is_success = true} -- Nature's Swiftness
-    spells_list[55166] = {duration = 180, is_success = true} -- Nature's Force
-    spells_list[16166] = {duration = 180, is_success = true} -- Elemental Mastery
-    spells_list[55166] = {duration = 180, is_success = true} -- Tidal Force
+    spells[51514]        = { duration = 45, is_success = true }                                                                                                    -- Hex
+    spells[57994]        = { duration = { 5.2, 5, 6 }, has_other_duration = true, is_success = true }                                                              -- Windshear
+    spells[51533]        = { duration = 180, is_success = true }                                                                                                   -- Feral Spirit
+    spells[8177]         = { duration = { 15, 13.5, 11.5 }, has_other_duration = true, is_success = true }                                                         -- Grounding Totem
+    spells[32182]        = { duration = 300, is_success = true }                                                                                                   -- Heroism
+    spells[2825]         = { duration = 300, is_success = true }                                                                                                   -- Bloodlust
+    spells[30823]        = { duration = 60, is_success = true }                                                                                                    -- Shamanistic Rage
+    spells[59159]        = { duration = 35, is_success = true }                                                                                                    -- Thunderstorm
+    spells[16190]        = { duration = 300, is_success = true }                                                                                                   -- Mana Tide Totem
+    spells[16188]        = { duration = 120, is_success = true }                                                                                                   -- Nature's Swiftness
+    spells[55166]        = { duration = 180, is_success = true }                                                                                                   -- Nature's Force
+    spells[16166]        = { duration = 180, is_success = true }                                                                                                   -- Elemental Mastery
+    spells[55166]        = { duration = 180, is_success = true }                                                                                                   -- Tidal Force
     -- Druid
-    spells_list[22812] = {duration = 60, is_success = true} -- Barkskin
-    spells_list[29166] = {duration = 180, is_success = true} -- Innervate
-    spells_list[53312] = {duration = 60, is_success = true} -- Nature's Grasp
-    spells_list[22842] = {duration = 180, is_success = true} -- Frenzied Regeneration
-    spells_list[17116] = {duration = 180, is_success = true} -- Nature's Swiftness
-    spells_list[48447] = {duration = 480, is_success = true} -- Tranquility
-    spells_list[8983] = {duration = 60, is_success = true} -- Bash
-    spells_list[61336] = {duration = 180, is_success = true} -- Survival Instincts
-    spells_list[16979] = {duration = 15, is_success = true} -- Feral Charge - Bear
-    spells_list[50213] = {duration = 30, is_success = true} -- Tiger's Fury
-    spells_list[33831] = {duration = 180, is_success = true} -- Force of Nature
-    spells_list[53201] = {duration = 60, is_success = true} -- Starfall
-    spells_list[18562] = {duration = 13, is_success = true} -- Swiftmend
-    spells_list[50334] = {duration = 180, is_success = true} -- Berserk
-    spells_list[53227] = {duration = 20, is_success = true} -- Typhoon
-    spells_list[33357] = {duration = 144, is_success = true} -- Dash
-    spells_list[5229] = {duration = 60, is_success = true} -- Enrage
-    spells_list[69369] = {duration  = 8, is_aura = true} -- Predator's Swiftness
+    spells[22812]        = { duration = 60, is_success = true }                                                                                                    -- Barkskin
+    spells[29166]        = { duration = 180, is_success = true }                                                                                                   -- Innervate
+    spells[53312]        = { duration = 60, is_success = true }                                                                                                    -- Nature's Grasp
+    spells[22842]        = { duration = 180, is_success = true }                                                                                                   -- Frenzied Regeneration
+    spells[17116]        = { duration = 180, is_success = true }                                                                                                   -- Nature's Swiftness
+    spells[48447]        = { duration = 480, is_success = true }                                                                                                   -- Tranquility
+    spells[8983]         = { duration = 60, is_success = true }                                                                                                    -- Bash
+    spells[61336]        = { duration = 180, is_success = true }                                                                                                   -- Survival Instincts
+    spells[16979]        = { duration = 15, is_success = true }                                                                                                    -- Feral Charge - Bear
+    spells[50213]        = { duration = 30, is_success = true }                                                                                                    -- Tiger's Fury
+    spells[33831]        = { duration = 180, is_success = true }                                                                                                   -- Force of Nature
+    spells[53201]        = { duration = 60, is_success = true }                                                                                                    -- Starfall
+    spells[18562]        = { duration = 13, is_success = true }                                                                                                    -- Swiftmend
+    spells[50334]        = { duration = 180, is_success = true }                                                                                                   -- Berserk
+    spells[53227]        = { duration = 20, is_success = true }                                                                                                    -- Typhoon
+    spells[33357]        = { duration = 144, is_success = true }                                                                                                   -- Dash
+    spells[5229]         = { duration = 60, is_success = true }                                                                                                    -- Enrage
+    spells[69369]        = { duration = 8, is_aura = true }                                                                                                        -- Predator's Swiftness
     -- Hunter
-    spells_list[34490] = {duration = 20, is_success = true} -- Silencing Shot
-    spells_list[23989] = {duration = 180, related = {34490,3045,34026,53271,19263,781,14311,60202,19503,19574,34600}, is_success = true} -- Readiness
-    spells_list[3045] = {duration = 300, is_success = true} -- Rapid Fire
-    spells_list[34026] = {duration = 60, is_success = true} -- Kill Command
-    spells_list[53271] = {duration = 60, is_success = true} -- Master's Call
-    spells_list[19263] = {duration = 90, is_success = true} -- Deterrence
-    spells_list[781] = {duration = {16, 20}, has_other_duration=true, is_success = true} -- Disengage
-    spells_list[14311] = {duration = 28, is_success = true} -- Freezing Trap
-    spells_list[60202] = {duration = 28, is_success = true} -- Freezing Arrow
-    spells_list[19503] = {duration = 30, is_success = true} -- Scatter Shot
-    spells_list[19574] = {duration = 70.2, is_success = true} -- Bestial Wrath
-    spells_list[19577] = {duration = 42, is_success = true} -- Intimidation
-    spells_list[34600] = {duration = 28, is_success = true} -- Snake Trap
+    spells[34490]        = { duration = 20, is_success = true }                                                                                                    -- Silencing Shot
+    spells[23989]        = { duration = 180, related = { 34490, 3045, 34026, 53271, 19263, 781, 14311, 60202, 19503, 19574, 34600 }, is_success = true }           -- Readiness
+    spells[3045]         = { duration = 300, is_success = true }                                                                                                   -- Rapid Fire
+    spells[34026]        = { duration = 60, is_success = true }                                                                                                    -- Kill Command
+    spells[53271]        = { duration = 60, is_success = true }                                                                                                    -- Master's Call
+    spells[19263]        = { duration = 90, is_success = true }                                                                                                    -- Deterrence
+    spells[781]          = { duration = { 16, 20 }, has_other_duration = true, is_success = true }                                                                 -- Disengage
+    spells[14311]        = { duration = 28, is_success = true }                                                                                                    -- Freezing Trap
+    spells[60202]        = { duration = 28, is_success = true }                                                                                                    -- Freezing Arrow
+    spells[19503]        = { duration = 30, is_success = true }                                                                                                    -- Scatter Shot
+    spells[19574]        = { duration = 70.2, is_success = true }                                                                                                  -- Bestial Wrath
+    spells[19577]        = { duration = 42, is_success = true }                                                                                                    -- Intimidation
+    spells[34600]        = { duration = 28, is_success = true }                                                                                                    -- Snake Trap
     -- Trinket
-    spells_list[71607] = {duration = 120, is_success = true} -- Release of Light
-    -- End
+    spells[71607]        = { duration = 120, is_success = true }                                                                                                   -- Release of Light
 
-    player_spells_list = {}
-    --Player Spells
-    player_spells_list[57823] = {duration = 5, is_swing = true, swing_types= {"DODGE", "PARRY", "BLOCK"}, class = "WARRIOR"} -- Revenge
-    player_spells_list[60503] = {duration = 9, is_aura = true} -- Taste for Blood
-    player_spells_list[1715] = {duration = 15, is_aura = true} -- Hamstring
-    player_spells_list[47486] = {duration = 10, is_aura = true} -- Mortal Strike
-    player_spells_list[47465] = {duration = 21, is_aura = true} -- Rend
-    player_spells_list[47436] = {duration = 360, is_aura = true} -- Battle Shout
-    player_spells_list[65156] = {duration = 10, is_aura = true} -- Juggernaut
-    player_spells_list[52437] = {duration = 9, is_aura = true} -- Sudden Death
-    player_spells_list[59578] = {duration = 14, is_aura = true} -- Art of War
-    player_spells_list[54149] = {duration = 14, is_aura = true} -- Infusion of Light
-    player_spells_list[64205] = {duration = 10, is_aura = true} -- Divine Sacrifice
-    player_spells_list[25771] = {duration = 120, is_aura = true} -- Forbearance
-    player_spells_list[31821] = {duration = 6, is_aura = true} -- Aura Mastery
-    player_spells_list[53601] = {duration = {60, 30}, has_other_duration = true, is_aura = true} -- Sacred Shield
-    player_spells_list[53563] = {duration = 60, is_aura = true} -- Beacon of Light
-    player_spells_list[54152] = {duration = 60, is_aura = true} -- Judgements of the Pure
-    player_spells_list[6940] = {duration = 12, is_aura = true} -- Hand of Sacrifice
-    player_spells_list[48801] = {duration = 15, is_success = true} -- Exorcism
-    player_spells_list[20271] = {duration = 10, is_success = true} -- Judgement of Light
-    player_spells_list[53407] = {duration = 10, is_success = true} -- Judgement of Justice
-    player_spells_list[48817] = {duration = 30, is_success = true} -- Holy Wrath
-    player_spells_list[10326] = {duration = 8, is_success = true} -- Turn Evil
-    player_spells_list[48806] = {duration = 6, is_success = true} -- Hammer of Wrath
-    player_spells_list[48819] = {duration = 8, is_success = true} -- Consecration
-    player_spells_list[51713] = {duration = 8, is_aura = true} -- Shadowdance
-    player_spells_list[1766] = {duration = 10, is_success = true} -- Kick
-    --End
+    -- Player spells
+    playerSpells[57823]  = {
+        duration = 5,
+        is_swing = true,
+        swing_types = { "DODGE", "PARRY", "BLOCK" },
+        class =
+        "WARRIOR"
+    }                                                                                           -- Revenge
+    playerSpells[60503]  = { duration = 9, is_aura = true }                                     -- Taste for Blood
+    playerSpells[1715]   = { duration = 15, is_aura = true }                                    -- Hamstring
+    playerSpells[47486]  = { duration = 10, is_aura = true }                                    -- Mortal Strike
+    playerSpells[47465]  = { duration = 21, is_aura = true }                                    -- Rend
+    playerSpells[47436]  = { duration = 360, is_aura = true }                                   -- Battle Shout
+    playerSpells[65156]  = { duration = 10, is_aura = true }                                    -- Juggernaut
+    playerSpells[52437]  = { duration = 9, is_aura = true }                                     -- Sudden Death
+    playerSpells[59578]  = { duration = 14, is_aura = true }                                    -- Art of War
+    playerSpells[54149]  = { duration = 14, is_aura = true }                                    -- Infusion of Light
+    playerSpells[64205]  = { duration = 10, is_aura = true }                                    -- Divine Sacrifice
+    playerSpells[25771]  = { duration = 120, is_aura = true }                                   -- Forbearance
+    playerSpells[31821]  = { duration = 6, is_aura = true }                                     -- Aura Mastery
+    playerSpells[53601]  = { duration = { 60, 30 }, has_other_duration = true, is_aura = true } -- Sacred Shield
+    playerSpells[53563]  = { duration = 60, is_aura = true }                                    -- Beacon of Light
+    playerSpells[54152]  = { duration = 60, is_aura = true }                                    -- Judgements of the Pure
+    playerSpells[6940]   = { duration = 12, is_aura = true }                                    -- Hand of Sacrifice
+    playerSpells[48801]  = { duration = 15, is_success = true }                                 -- Exorcism
+    playerSpells[20271]  = { duration = 10, is_success = true }                                 -- Judgement of Light
+    playerSpells[53407]  = { duration = 10, is_success = true }                                 -- Judgement of Justice
+    playerSpells[48817]  = { duration = 30, is_success = true }                                 -- Holy Wrath
+    playerSpells[10326]  = { duration = 8, is_success = true }                                  -- Turn Evil
+    playerSpells[48806]  = { duration = 6, is_success = true }                                  -- Hammer of Wrath
+    playerSpells[48819]  = { duration = 8, is_success = true }                                  -- Consecration
+    playerSpells[51713]  = { duration = 8, is_aura = true }                                     -- Shadowdance
+    playerSpells[1766]   = { duration = 10, is_success = true }                                 -- Kick
 
-    specs_by_guid_list = {}
-    special_spells_list = {}
-    special_spells_list[48821] = 1 -- Holy Paladin
-    special_spells_list[53563] = 1 -- Holy Paladin
-    special_spells_list[53385] = 2 -- Retribution Paladin
-    special_spells_list[35395] = 2 -- Retribution Paladin
-    special_spells_list[20066] = 2 -- Retribution Paladin
-    special_spells_list[48827] = 3 -- Protection Paladin
-    special_spells_list[48952] = 3 -- Protection Paladin
-    special_spells_list[53595] = 3 -- Protection Paladin
-    special_spells_list[46924] = 1 -- Arms Warrior
-    special_spells_list[47486] = 1 -- Arms Warrior
-    special_spells_list[65156] = 1 -- Arms Warrior
-    special_spells_list[12328] = 1 -- Arms Warrior
-    special_spells_list[46968] = 2 -- Protection Warrior
-    special_spells_list[47498] = 2 -- Protection Warrior
-    special_spells_list[12809] = 2 -- Protection Warrior
-    special_spells_list[48660] = 1 -- Subtlety Rogue
-    special_spells_list[51713] = 1 -- Subtlety Rogue
-    special_spells_list[36554] = 1 -- Subtlety Rogue
-    special_spells_list[48666] = 2 -- Assassination Rogue
-    special_spells_list[51690] = 3 -- Combat Rogue
-    special_spells_list[13750] = 3 -- Combat Rogue
-    special_spells_list[48638] = 3 -- Combat Rogue
-    special_spells_list[47750] = 1 -- Discipline Priest
-    special_spells_list[33206] = 1 -- Discipline Priest
-    special_spells_list[10060] = 1 -- Discipline Priest
-    special_spells_list[47585] = 2 -- Shadow Priest
-    special_spells_list[64044] = 2 -- Shadow Priest
-    special_spells_list[15487] = 2 -- Shadow Priest
-    special_spells_list[15286] = 2 -- Shadow Priest
-    special_spells_list[48160] = 2 -- Shadow Priest
-    special_spells_list[15473] = 2 -- Shadow Priest
-    special_spells_list[49206] = 1 -- Unholy DK
-    special_spells_list[51052] = 1 -- Unholy DK
-    special_spells_list[55271] = 1 -- Unholy DK
-    special_spells_list[49222] = 1 -- Unholy DK
-    special_spells_list[51328] = 1 -- Unholy DK
-    special_spells_list[51052] = 1 -- Unholy DK
-    special_spells_list[50536] = 1 -- Unholy DK
-    special_spells_list[49796] = 2 -- Frost DK
-    special_spells_list[49203] = 2 -- Frost DK
-    special_spells_list[50436] = 2 -- Frost DK
-    special_spells_list[55268] = 2 -- Frost DK
-    special_spells_list[42945] = 1 -- Fire Mage
-    special_spells_list[42950] = 1 -- Fire Mage
-    special_spells_list[55360] = 1 -- Fire Mage
-    special_spells_list[28682] = 1 -- Fire Mage
-    special_spells_list[11958] = 2 -- Frost Mage
-    special_spells_list[44572] = 2 -- Frost Mage
-    special_spells_list[31687] = 2 -- Frost Mage
-    special_spells_list[43039] = 2 -- Frost Mage
-    special_spells_list[44781] = 3 -- Arcane Mage
-    special_spells_list[31589] = 3 -- Arcane Mage
-    special_spells_list[12042] = 3 -- Arcane Mage
-    special_spells_list[12043] = 3 -- Arcane Mage
-    special_spells_list[59164] = 1 -- Affliction Warlock
-    special_spells_list[47843] = 1 -- Affliction Warlock
-    special_spells_list[59172] = 2 -- Destruction Warlock
-    special_spells_list[47827] = 2 -- Destruction Warlock
-    special_spells_list[47847] = 2 -- Destruction Warlock
-    special_spells_list[17962] = 2 -- Destruction Warlock
-    special_spells_list[17116] = 1 -- Restoration Druid
-    special_spells_list[18562] = 1 -- Restoration Druid
-    special_spells_list[53251] = 1 -- Restoration Druid
-    special_spells_list[34123] = 1 -- Restoration Druid
-    special_spells_list[50334] = 2 -- Feral Druid
-    special_spells_list[24932] = 2 -- Feral Druid
-    special_spells_list[53201] = 3 -- Balance Druid
-    special_spells_list[33831] = 3 -- Balance Druid
-    special_spells_list[24858] = 3 -- Balance Druid
-    special_spells_list[53227] = 3 -- Balance Druid
-    special_spells_list[53209] = 1 -- Marksmanship Hunter
-    special_spells_list[34490] = 1 -- Marksmanship Hunter
-    special_spells_list[19506] = 1 -- Marksmanship Hunter
-    special_spells_list[19574] = 2 -- Beastmastery Hunter
-    special_spells_list[19577] = 2 -- Beastmastery Hunter
-    special_spells_list[51533] = 1 -- Enhancement Shaman
-    special_spells_list[30823] = 1 -- Enhancement Shaman
-    special_spells_list[17364] = 1 -- Enhancement Shaman
-    special_spells_list[60103] = 1 -- Enhancement Shaman
-    special_spells_list[59159] = 2 -- Elemental Shaman
-    special_spells_list[57722] = 2 -- Elemental Shaman
-    special_spells_list[16166] = 2 -- Elemental Shaman
-    special_spells_list[51886] = 3 -- Restoration Shaman
-    special_spells_list[16190] = 3 -- Restoration Shaman
-    special_spells_list[49284] = 3 -- Restoration Shaman
-    special_spells_list[61301] = 3 -- Restoration Shaman
-    special_spells_list[16188] = 3 -- Restoration Shaman
+    -- Spec detection
+    specialSpells[48821] = 1 -- Holy Paladin
+    specialSpells[53563] = 1 -- Holy Paladin
+    specialSpells[53385] = 2 -- Retribution Paladin
+    specialSpells[35395] = 2 -- Retribution Paladin
+    specialSpells[20066] = 2 -- Retribution Paladin
+    specialSpells[48827] = 3 -- Protection Paladin
+    specialSpells[48952] = 3 -- Protection Paladin
+    specialSpells[53595] = 3 -- Protection Paladin
+    specialSpells[46924] = 1 -- Arms Warrior
+    specialSpells[47486] = 1 -- Arms Warrior
+    specialSpells[65156] = 1 -- Arms Warrior
+    specialSpells[12328] = 1 -- Arms Warrior
+    specialSpells[46968] = 2 -- Protection Warrior
+    specialSpells[47498] = 2 -- Protection Warrior
+    specialSpells[12809] = 2 -- Protection Warrior
+    specialSpells[48660] = 1 -- Subtlety Rogue
+    specialSpells[51713] = 1 -- Subtlety Rogue
+    specialSpells[36554] = 1 -- Subtlety Rogue
+    specialSpells[48666] = 2 -- Assassination Rogue
+    specialSpells[51690] = 3 -- Combat Rogue
+    specialSpells[13750] = 3 -- Combat Rogue
+    specialSpells[48638] = 3 -- Combat Rogue
+    specialSpells[47750] = 1 -- Discipline Priest
+    specialSpells[33206] = 1 -- Discipline Priest
+    specialSpells[10060] = 1 -- Discipline Priest
+    specialSpells[47585] = 2 -- Shadow Priest
+    specialSpells[64044] = 2 -- Shadow Priest
+    specialSpells[15487] = 2 -- Shadow Priest
+    specialSpells[15286] = 2 -- Shadow Priest
+    specialSpells[48160] = 2 -- Shadow Priest
+    specialSpells[15473] = 2 -- Shadow Priest
+    specialSpells[49206] = 1 -- Unholy DK
+    specialSpells[51052] = 1 -- Unholy DK
+    specialSpells[55271] = 1 -- Unholy DK
+    specialSpells[49222] = 1 -- Unholy DK
+    specialSpells[51328] = 1 -- Unholy DK
+    specialSpells[51052] = 1 -- Unholy DK
+    specialSpells[50536] = 1 -- Unholy DK
+    specialSpells[49796] = 2 -- Frost DK
+    specialSpells[49203] = 2 -- Frost DK
+    specialSpells[50436] = 2 -- Frost DK
+    specialSpells[55268] = 2 -- Frost DK
+    specialSpells[42945] = 1 -- Fire Mage
+    specialSpells[42950] = 1 -- Fire Mage
+    specialSpells[55360] = 1 -- Fire Mage
+    specialSpells[28682] = 1 -- Fire Mage
+    specialSpells[11958] = 2 -- Frost Mage
+    specialSpells[44572] = 2 -- Frost Mage
+    specialSpells[31687] = 2 -- Frost Mage
+    specialSpells[43039] = 2 -- Frost Mage
+    specialSpells[44781] = 3 -- Arcane Mage
+    specialSpells[31589] = 3 -- Arcane Mage
+    specialSpells[12042] = 3 -- Arcane Mage
+    specialSpells[12043] = 3 -- Arcane Mage
+    specialSpells[59164] = 1 -- Affliction Warlock
+    specialSpells[47843] = 1 -- Affliction Warlock
+    specialSpells[59172] = 2 -- Destruction Warlock
+    specialSpells[47827] = 2 -- Destruction Warlock
+    specialSpells[47847] = 2 -- Destruction Warlock
+    specialSpells[17962] = 2 -- Destruction Warlock
+    specialSpells[17116] = 1 -- Restoration Druid
+    specialSpells[18562] = 1 -- Restoration Druid
+    specialSpells[53251] = 1 -- Restoration Druid
+    specialSpells[34123] = 1 -- Restoration Druid
+    specialSpells[50334] = 2 -- Feral Druid
+    specialSpells[24932] = 2 -- Feral Druid
+    specialSpells[53201] = 3 -- Balance Druid
+    specialSpells[33831] = 3 -- Balance Druid
+    specialSpells[24858] = 3 -- Balance Druid
+    specialSpells[53227] = 3 -- Balance Druid
+    specialSpells[53209] = 1 -- Marksmanship Hunter
+    specialSpells[34490] = 1 -- Marksmanship Hunter
+    specialSpells[19506] = 1 -- Marksmanship Hunter
+    specialSpells[19574] = 2 -- Beastmastery Hunter
+    specialSpells[19577] = 2 -- Beastmastery Hunter
+    specialSpells[51533] = 1 -- Enhancement Shaman
+    specialSpells[30823] = 1 -- Enhancement Shaman
+    specialSpells[17364] = 1 -- Enhancement Shaman
+    specialSpells[60103] = 1 -- Enhancement Shaman
+    specialSpells[59159] = 2 -- Elemental Shaman
+    specialSpells[57722] = 2 -- Elemental Shaman
+    specialSpells[16166] = 2 -- Elemental Shaman
+    specialSpells[51886] = 3 -- Restoration Shaman
+    specialSpells[16190] = 3 -- Restoration Shaman
+    specialSpells[49284] = 3 -- Restoration Shaman
+    specialSpells[61301] = 3 -- Restoration Shaman
+    specialSpells[16188] = 3 -- Restoration Shaman
 end
 
-local function zb_remove_icon(bar, length, id, is_aura, src_guid, dst_guid)
-    if is_aura then
-        local index = 1
-        local found = false
-        while index < length do
-            if bar[index].id == id and src_guid == bar[index].src_guid then
-                if dst_guid and dst_guid == bar[index].dst_guid or bar[index].dst_guid == nil then
-                    id = index
-                    found = true
-                    break
-                end
-            end
-            index = index + 1
-        end
-        if not found then
-            return length
-        end  
-    end  
-    length = length - 1
-    local index = id
-    while index < length do
-        bar[index].id = bar[index+1].id
-        bar[index].src_guid = bar[index+1].src_guid
-        bar[index].dst_guid = bar[index+1].dst_guid
-        bar[index].duration = bar[index+1].duration
-        bar[index].start = bar[index+1].start
-        bar[index].cooldown = bar[index+1].cooldown
-        bar[index].texture:SetTexture(bar[index+1].texture:GetTexture())
-        bar[index].text:SetText(bar[index+1].text:GetText())
-        bar[index].cd:SetCooldown(bar[index].start,bar[index].duration)
-        index = index + 1
-    end
-    bar[length]:Hide()
-    bar[length].flasher:Stop()
-    bar[length].is_playing = false
-    bar[length].text:SetText("") 
-    return length
+------------------------------------------------------------------------
+-- Helpers
+------------------------------------------------------------------------
+
+local bit_band = bit.band
+
+local function IsMine(flags)
+    return bit_band(flags, COMBATLOG_OBJECT_AFFILIATION_MINE) > 0
 end
 
-
-local function zb_update_text(bar, index)
-    if (bar[index].cooldown > 60) then
-        bar[index].text:SetTextColor(1,1,0,1)
-        bar[index].text:SetFont(STANDARD_TEXT_FONT,20,"OUTLINE")
-        bar[index].text:SetText(string.format("%.0fm", floor(bar[index].cooldown/60)))
-    elseif (bar[index].cooldown >= 10) then
-        bar[index].text:SetTextColor(1,1,0,1)
-        bar[index].text:SetFont(STANDARD_TEXT_FONT,20,"OUTLINE")
-        bar[index].text:SetText(string.format(" %.0f", floor(bar[index].cooldown)))
-    else
-        bar[index].text:SetTextColor(1,0,0,1)
-        bar[index].text:SetFont(STANDARD_TEXT_FONT,24,"OUTLINE")
-        bar[index].text:SetText(string.format("  %.0f", floor(bar[index].cooldown)))
-    end
+local function IsHostile(flags)
+    return bit_band(flags, COMBATLOG_OBJECT_REACTION_HOSTILE) > 0
 end
 
-local function zb_get_duration(list, id)
-    if list[id].has_other_duration then
-        if specs_by_guid_list[src_guid] then
-            if (list[id].duration[specs_by_guid_list[src_guid]]) then
-                duration = list[id].duration[specs_by_guid_list[src_guid]]
-            end
-        else
-            return list[id].duration[1]
-        end
-    else
-        return list[id].duration
-    end
-end
-
-local function zb_update_cooldowns(bar, length, list)
-    if length > 1 then
-        local index = 1
-        local get_time = GetTime()
-        while index < length do
-            bar[index].cooldown = bar[index].start + bar[index].duration - get_time
-            if bar[index].cooldown <= 0 then
-                if list[bar[index].id].has_charges and bar[index].has_charges < list[bar[index].id].has_charges then
-                    bar[index].has_charges = bar[index].has_charges + 1
-                    bar[index].start = get_time
-                    bar[index].duration = zb_get_duration(list, bar[index].id)
-                    bar[index].cooldown = bar[index].duration
-                    bar[index].cd:SetCooldown(bar[index].start,bar[index].duration)
-                    zb_update_text(bar, index)
-                else
-                    length = zb_remove_icon(bar, length, index, false)
-                    index = index - 1
-                end
-            else 
-                zb_update_text(bar, index)
-                if get_time - bar[index].start >= 1.9 and bar[index].is_playing then
-                    bar[index].is_playing = false
-                    bar[index].flasher:Stop()
-                end
-            end
-            index = index + 1
-        end
-    end
-    return length
-end
-
-local function zb_on_update(self, elapsed)
-    total_time_elapsed = total_time_elapsed + elapsed;
-    if total_time_elapsed >= update_interval then
-        if length_of_player_bar == 1 and length_of_hostile_bar == 1 and length_of_party_bar == 1 then
-            zb_frame:SetScript("OnUpdate",nil)
-            return
-        end
-        length_of_player_bar = zb_update_cooldowns(player_bar, length_of_player_bar, player_spells_list)
-        length_of_hostile_bar = zb_update_cooldowns(hostile_bar, length_of_hostile_bar, spells_list)
-        length_of_party_bar = zb_update_cooldowns(party_bar, length_of_party_bar, spells_list)
-        total_time_elapsed = 0
-    end
-end
-
-local function zb_add_icon(bar, length, id, list, src_guid, dst_guid)
-    local get_time = GetTime()
-    local index = 1
-    while index < length do
-        if bar[index].id == id and src_guid == bar[index].src_guid then
-            if dst_guid and dst_guid == bar[index].dst_guid or bar[index].dst_guid == nil then
-                if list[id].has_charges and bar[index].has_charges > 0 then
-                    bar[index].has_charges = bar[index].has_charges - 1
-                else
-                    bar[index].start = get_time*2-count_delay_from_start
-                    bar[index].duration = zb_get_duration(list, id)
-                    bar[index].cooldown = bar[index].start + bar[index].duration - get_time
-                    bar[index].cd:SetCooldown(bar[index].start,bar[index].duration)
-                    zb_update_text(bar, index)
-                end
-                bar[index].flasher:Play()
-                bar[index].is_playing = true
-                return length
-            end
-        end
-        index = index + 1
-    end
-    if length < total_icons_per_bar then
-        if dst_guid then
-            bar[length].dst_guid = dst_guid
-        else
-            bar[length].dst_guid = nil
-        end
-        if list[id].has_charges then
-            bar[length].has_charges = list[id].has_charges - 1
-        end
-        bar[length].src_guid = src_guid
-        bar[length].duration = zb_get_duration(list, id)
-
-        bar[length].start = get_time*2-count_delay_from_start
-        bar[length].cooldown = bar[length].start + bar[length].duration - get_time
-        
-
-        bar[length].id = id
-
-        local _,_,icon = GetSpellInfo(id)
-        bar[length].texture:SetTexture(icon)
-        
-        bar[length].cd:SetCooldown(bar[length].start,bar[length].duration)
-
-        bar[length]:Show()
-        bar[length].flasher:Play()
-        bar[length].is_playing = true
-        zb_update_text(bar, length)
-        
-        
-        zb_frame:SetScript("OnUpdate", zb_on_update)
-        return length + 1
-    end
-    return length
-end
-
-local function zb_event_type(combat_event, bar, length, id, line, src_guid, dst_guid)
-    if line[id].is_aura then
-        if combat_event == "SPELL_AURA_APPLIED" then
-            return zb_add_icon(bar, length, id, line, src_guid, dst_guid)
-        elseif combat_event == "SPELL_AURA_REMOVED" then
-            return zb_remove_icon(bar, length, id, true, src_guid, dst_guid)
-        elseif combat_event == "SPELL_AURA_REFRESH" then
-            return zb_add_icon(bar, length, id, line, src_guid, dst_guid)
-        end
-    else
-        if combat_event == "SPELL_DAMAGE" and line[id].isDamage then
-            return zb_add_icon(bar, length, id, line, src_guid, dst_guid)
-        elseif combat_event == "SPELL_CAST_SUCCESS" and line[id].is_success then
-            return zb_add_icon(bar, length, id, line, src_guid, dst_guid)
-        end
-    end
-    return length
-end
-
-local function zb_is_in_party(guid)
-    local index = 1
-    while index < 5 do
-        if (UnitGUID("party" .. index) == guid) then
+local function IsInParty(guid)
+    for i = 1, 4 do
+        if UnitGUID("party" .. i) == guid then
             return true
         end
-        index = index + 1
     end
     return false
 end
 
-local function zb_combat_log(timestamp, combat_event, src_guid, src_name, src_flags, dst_guid, dst_name, dst_flags, spell_id, spell_name)
-    count_delay_from_start = GetTime()
-    if is_debugging and (src_guid == (player_guid or UnitGUID("target"))) then
-        print(spell_id)
-        print(spell_name)
-        print(combat_event)
+local function GetDurationFor(list, spellID, srcGUID)
+    local info = list[spellID]
+    if not info then return nil end
+
+    local dur = info.duration
+    if type(dur) == "table" then
+        local spec = ZB.specByGUID[srcGUID]
+        if spec and dur[spec] then
+            return dur[spec]
+        else
+            return dur[1]
+        end
     end
-    if is_disabled or (not all and src_guid == (player_guid or UnitGUID("target"))) then
+    return dur
+end
+
+local function FormatSeconds(sec)
+    if not sec or sec <= 0 then return "" end
+    return tostring(math.floor(sec + 0.5))
+end
+
+local function UpdateIconText(icon)
+    local t = icon.cooldown or 0
+    if t <= 0 then
+        icon.text:SetText("")
         return
     end
-    if special_spells_list[spell_id] then
-        specs_by_guid_list[src_guid] = special_spells_list[spell_id]
+
+    local fontSize = (t < 10) and 24 or 20
+    local r, g, b = 1, 1, 0
+    if t < 10 then
+        r, g, b = 1, 0, 0
     end
-    if spell_id == 14185 or spell_id == 23989 or spell_id == 11958 then
-        if bit.band(src_flags, COMBATLOG_OBJECT_REACTION_HOSTILE) > 0 then
-            for related_id in pairs(spells_list[spell_id].related) do
-                length_of_hostile_bar = zb_remove_icon(hostile_bar, length_of_hostile_bar, related_id, true, src_guid)
-            end
-        elseif zb_is_in_party(src_guid) then
-            for related_id in pairs(spells_list[spell_id].related) do
-                length_of_party_bar = zb_remove_icon(party_bar, length_of_party_bar, related_id, true, src_guid)
-            end
-        end
-    end
-    if bit.band(src_flags, COMBATLOG_OBJECT_AFFILIATION_MINE) > 0 then
-        if player_spells_list[spell_id] then 
-            if zb_is_in_party(dst_guid) then
-                length_of_party_bar = zb_event_type(combat_event, party_bar, length_of_party_bar, spell_id, player_spells_list, src_guid, dst_guid)
-            else
-                length_of_player_bar = zb_event_type(combat_event, player_bar, length_of_player_bar, spell_id, player_spells_list, src_guid)
-            end
-        elseif combat_event == "SWING_MISSED" then
-            for id in pairs(player_spells_list) do
-                if player_spells_list[id].is_swing and (player_spells_list[id].class == nil or player_spells_list[id].class == player_class) then
-                    for swing_type in pairs(player_spells[id].swing_types) do
-                        if swing_type == spell_id then
-                            length_of_player_bar = zb_add_icon(bar, length, id, line, src_guid)
-                            return
-                        end
-                    end 
-                end
-            end
-        end
-    elseif spells_list[spell_id] then  
-        if bit.band(src_flags, COMBATLOG_OBJECT_REACTION_HOSTILE) > 0 then
-            length_of_hostile_bar = zb_event_type(combat_event, hostile_bar, length_of_hostile_bar, spell_id, spells_list, src_guid)
-        elseif zb_is_in_party(src_guid) then
-            length_of_party_bar = zb_event_type(combat_event, party_bar, length_of_party_bar, spell_id, spells_list, src_guid)
-        end
+
+    icon.text:SetFont(STANDARD_TEXT_FONT, fontSize, "OUTLINE")
+    icon.text:SetTextColor(r, g, b, 1)
+
+    if t > 60 then
+        icon.text:SetText(string.format("%.0fm", math.floor(t / 60)))
+    else
+        icon.text:SetText(FormatSeconds(t))
     end
 end
 
-local function zb_initialize_bar(bar, bar_x, bar_y, name)
-    bar = CreateFrame("Frame",nil,UIParent)
-    bar:SetWidth(square_size*4)
-    bar:SetHeight(square_size)
+------------------------------------------------------------------------
+-- Bar / Icon creation
+------------------------------------------------------------------------
+
+function ZB:CreateBar(key)
+    local cfg = self.bars[key]
+    local bar = CreateFrame("Frame", nil, UIParent)
+    bar:SetSize(squareSize * 4, squareSize)
+    bar:SetPoint("CENTER", UIParent, "CENTER", cfg.x, cfg.y)
     bar:SetClampedToScreen(true)
-    bar:SetPoint("CENTER", UIParent, "CENTER", bar_x, bar_y)
-    bar.name = name
-    local location
-    local icon
-    local cooldown
-    local texture
-    local text
-    local index = 1
-    while index < total_icons_per_bar do
-        
-        location = square_size * index + 5 * index
+    bar.icons  = {}
+    cfg.frame  = bar
+    cfg.length = 1
 
-        icon = CreateFrame("Frame",nil,bar)
-        icon:SetWidth(square_size)
-        icon:SetHeight(square_size)
-        icon:SetPoint("CENTER",bar,"CENTER",location,0)
+    for i = 1, totalIconsPerBar do
+        local icon = CreateFrame("Frame", nil, bar)
+        icon:SetSize(squareSize, squareSize)
+        icon:SetPoint("LEFT", bar, "LEFT", (i - 1) * (squareSize + 5), 0)
         icon:SetFrameStrata("LOW")
-        
-        texture = icon:CreateTexture(nil,"BACKGROUND")
-        texture:SetAllPoints()
-        texture:SetTexCoord(0.07,0.9,0.07,0.90) 
 
-        --
-        cooldown = CreateFrame("Cooldown",nil, icon, "CooldownFrameTemplate")
-        cooldown:SetAllPoints()
-        cooldown:SetFrameStrata("MEDIUM")
-        cooldown.noomnicc = true
-        cooldown.noCooldownCount = true
-    
-        text = cooldown:CreateFontString(nil,"ARTWORK")
-        text:SetFont(STANDARD_TEXT_FONT,20,"OUTLINE")
-        text:SetTextColor(1,1,0,1)
-        text:SetPoint("LEFT",icon,"LEFT",2,0)
-        --
+        local tex = icon:CreateTexture(nil, "BACKGROUND")
+        tex:SetAllPoints()
+        tex:SetTexCoord(0.07, 0.9, 0.07, 0.90)
 
-        icon.texture = texture
-        icon.cd = cooldown
-        icon.text = text
+        local cd = CreateFrame("Cooldown", nil, icon, "CooldownFrameTemplate")
+        cd:SetAllPoints()
+        cd:SetFrameStrata("MEDIUM")
+        cd.noomnicc = true
+        cd.noCooldownCount = true
 
-        icon.flasher = icon:CreateAnimationGroup()
+        local text = cd:CreateFontString(nil, "ARTWORK")
+        text:SetPoint("CENTER", icon, "CENTER", 0, -2)
+        text:SetFont(STANDARD_TEXT_FONT, 20, "OUTLINE")
+        text:SetTextColor(1, 1, 0, 1)
 
-        local fade_out = icon.flasher:CreateAnimation("Alpha")
-        fade_out:SetDuration(0.5)
-        fade_out:SetChange(-1)
-        fade_out:SetOrder(1)
+        local ag = icon:CreateAnimationGroup()
+        local fadeOut = ag:CreateAnimation("Alpha")
+        fadeOut:SetDuration(0.5)
+        fadeOut:SetChange(-1)
+        fadeOut:SetOrder(1)
+        local fadeIn = ag:CreateAnimation("Alpha")
+        fadeIn:SetDuration(0.5)
+        fadeIn:SetChange(1)
+        fadeIn:SetOrder(2)
+        ag:SetLooping("REPEAT")
 
-        local fade_in = icon.flasher:CreateAnimation("Alpha")
-        fade_in:SetDuration(0.5)
-        fade_in:SetChange(1)
-        fade_in:SetOrder(2)
-
-        icon.flasher:SetLooping("REPEAT")
-        icon.is_playing = false
+        icon.texture   = tex
+        icon.cd        = cd
+        icon.text      = text
+        icon.flasher   = ag
+        icon.isPlaying = false
 
         icon:Hide()
-        bar[index] = icon 
-        index = index + 1
-    end   
-    return bar
-end
-
-local function zb_clear_spec_list()
-    for character in pairs (specs_by_guid_list) do
-        specs_by_guid_list[character] = nil
+        bar.icons[i] = icon
     end
 end
 
-local function zb_reset_all(bar, length)
-    while length > 1 do
-        length = zb_remove_icon(bar, length, 1, false)
-    end        
-    return length
+local function RemoveIcon(barCfg, index)
+    local bar    = barCfg.frame
+    local icons  = bar.icons
+    local length = barCfg.length
+
+    if index >= length then return end
+
+    for i = index, length - 2 do
+        local src      = icons[i + 1]
+        local dst      = icons[i]
+
+        dst.id         = src.id
+        dst.srcGUID    = src.srcGUID
+        dst.dstGUID    = src.dstGUID
+        dst.duration   = src.duration
+        dst.startTime  = src.startTime
+        dst.cooldown   = src.cooldown
+        dst.hasCharges = src.hasCharges
+
+        dst.texture:SetTexture(src.texture:GetTexture())
+        dst.cd:SetCooldown(dst.startTime, dst.duration)
+        dst.text:SetText(src.text:GetText())
+    end
+
+    local last = icons[length - 1]
+    last:Hide()
+    last.flasher:Stop()
+    last.isPlaying = false
+    last.text:SetText("")
+    last.id         = nil
+    last.srcGUID    = nil
+    last.dstGUID    = nil
+    last.duration   = nil
+    last.startTime  = nil
+    last.cooldown   = nil
+    last.hasCharges = nil
+
+    barCfg.length   = length - 1
 end
 
-local function zb_entering_world()
-    length_of_player_bar = zb_reset_all(player_bar, length_of_player_bar)
-    length_of_hostile_bar = zb_reset_all(hostile_bar, length_of_hostile_bar)
-    length_of_party_bar = zb_reset_all(party_bar, length_of_party_bar)
+local function OnUpdate(elapsed)
+    ZB.elapsed = ZB.elapsed + elapsed
+    if ZB.elapsed < ZB.updateInterval then return end
+    ZB.elapsed = 0
+
+    local active = (ZB.bars.player.length - 1) +
+        (ZB.bars.party.length - 1) +
+        (ZB.bars.hostile.length - 1)
+
+    if active == 0 then
+        ZB.frame:SetScript("OnUpdate", nil)
+        return
+    end
+
+    ZB:UpdateBar(ZB.bars.player, playerSpells)
+    ZB:UpdateBar(ZB.bars.hostile, spells)
+    ZB:UpdateBar(ZB.bars.party, spells)
 end
 
-local function zb_remove_ex_party_member_icons()
-    local index = 1
-    while index < length_of_party_bar do
-        if (party_bar[index]["src_guid"]) then
-            if zb_is_in_party(party_bar[index].src_guid) then
-                length_of_party_bar = zb_remove_icon(party_bar, length_of_party_bar, index, false)
+local function AddOrRefreshIcon(barCfg, spellID, list, srcGUID, dstGUID)
+    local bar    = barCfg.frame
+    local icons  = bar.icons
+    local now    = GetTime()
+    local length = barCfg.length
+    local data   = list[spellID]
+    if not data then return end
+
+    -- refresh
+    for i = 1, length - 1 do
+        local icon = icons[i]
+        if icon.id == spellID and icon.srcGUID == srcGUID and
+            (not dstGUID or icon.dstGUID == dstGUID or icon.dstGUID == nil) then
+            if data.has_charges and icon.hasCharges and icon.hasCharges > 0 then
+                icon.hasCharges = icon.hasCharges - 1
+            else
+                icon.duration  = GetDurationFor(list, spellID, srcGUID)
+                icon.startTime = now
+                icon.cooldown  = icon.duration
+                icon.cd:SetCooldown(icon.startTime, icon.duration)
             end
-        elseif (party_bar[index]["dst_guid"]) then
-            if zb_is_in_party(party_bar[index].dst_guid) then
-                length_of_party_bar = zb_remove_icon(party_bar, length_of_party_bar, index, false)
-            end
+
+            icon.flasher:Play()
+            icon.isPlaying = true
+            UpdateIconText(icon)
+            return
         end
-        index = index + 1
+    end
+
+    -- new
+    if length > totalIconsPerBar then return end
+
+    local icon      = icons[length]
+    icon.id         = spellID
+    icon.srcGUID    = srcGUID
+    icon.dstGUID    = dstGUID
+    icon.duration   = GetDurationFor(list, spellID, srcGUID)
+    icon.startTime  = now
+    icon.cooldown   = icon.duration
+    icon.hasCharges = data.has_charges and (data.has_charges - 1) or nil
+
+    local _, _, tex = GetSpellInfo(spellID)
+    icon.texture:SetTexture(tex or "")
+    icon.cd:SetCooldown(icon.startTime, icon.duration)
+
+    icon:Show()
+    icon.flasher:Play()
+    icon.isPlaying = true
+    UpdateIconText(icon)
+
+    barCfg.length = length + 1
+    ZB.frame:SetScript("OnUpdate", function(_, elapsed) OnUpdate(elapsed) end)
+end
+
+------------------------------------------------------------------------
+-- Cooldown updates
+------------------------------------------------------------------------
+
+function ZB:UpdateBar(barCfg, list)
+    local bar = barCfg.frame
+    if not bar then return end
+
+    local icons = bar.icons
+    local now   = GetTime()
+    local i     = 1
+
+    while i < barCfg.length do
+        local icon = icons[i]
+        icon.cooldown = icon.startTime + icon.duration - now
+
+        if icon.cooldown <= 0 then
+            local data = list[icon.id]
+            if data and data.has_charges and icon.hasCharges < data.has_charges then
+                icon.hasCharges = icon.hasCharges + 1
+                icon.duration   = GetDurationFor(list, icon.id, icon.srcGUID)
+                icon.startTime  = now
+                icon.cooldown   = icon.duration
+                icon.cd:SetCooldown(icon.startTime, icon.duration)
+                UpdateIconText(icon)
+                i = i + 1
+            else
+                RemoveIcon(barCfg, i)
+            end
+        else
+            UpdateIconText(icon)
+            if now - icon.startTime >= 1.9 and icon.isPlaying then
+                icon.isPlaying = false
+                icon.flasher:Stop()
+            end
+            i = i + 1
+        end
     end
 end
 
-local function zb_commands(sub_string)
-    if sub_string == "debug" then
-        is_debugging = not is_debugging
-        if is_debugging then
-            print("Debugging on.")
-        else 
-            print("Debugging off.")
+------------------------------------------------------------------------
+-- Combat log handling
+------------------------------------------------------------------------
+
+local function HandleSpecDetection(spellID, srcGUID)
+    local spec = specialSpells[spellID]
+    if spec then
+        ZB.specByGUID[srcGUID] = spec
+    end
+end
+
+local function RemoveBySpell(barCfg, spellID, srcGUID)
+    local bar   = barCfg.frame
+    local icons = bar.icons
+    local i     = 1
+
+    while i < barCfg.length do
+        local icon = icons[i]
+        if icon.id == spellID and icon.srcGUID == srcGUID then
+            RemoveIcon(barCfg, i)
+        else
+            i = i + 1
         end
-    elseif sub_string == "clear" then
-        zb_entering_world()
-        zb_clear_spec_list()
-    elseif sub_string == "disable" then
-        is_disabled = not is_disabled
-    elseif sub_string == "all" then
-        all = not all
+    end
+end
+
+local function HandleResetSpells(spellID, srcGUID, srcFlags)
+    if spellID ~= 14185 and spellID ~= 23989 and spellID ~= 11958 then
+        return
+    end
+    local data = spells[spellID]
+    if not data or not data.related then return end
+
+    if IsHostile(srcFlags) then
+        for relatedID in pairs(data.related) do
+            RemoveBySpell(ZB.bars.hostile, relatedID, srcGUID)
+        end
+    elseif IsInParty(srcGUID) then
+        for relatedID in pairs(data.related) do
+            RemoveBySpell(ZB.bars.party, relatedID, srcGUID)
+        end
+    end
+end
+
+local function HandlePlayerSpell(subEvent, spellID, srcGUID, dstGUID)
+    local info = playerSpells[spellID]
+    if not info then return end
+    local targetBar = IsInParty(dstGUID) and ZB.bars.party or ZB.bars.player
+    if info.is_aura then
+        if subEvent == "SPELL_AURA_APPLIED" or subEvent == "SPELL_AURA_REFRESH" then
+            AddOrRefreshIcon(targetBar, spellID, playerSpells, srcGUID, dstGUID)
+        elseif subEvent == "SPELL_AURA_REMOVED" then
+            RemoveBySpell(targetBar, spellID, srcGUID)
+        end
+    elseif subEvent == "SPELL_CAST_SUCCESS" and info.is_success then
+        AddOrRefreshIcon(targetBar, spellID, playerSpells, srcGUID, dstGUID)
+    end
+end
+
+local function HandleOtherSpell(subEvent, spellID, srcGUID, srcFlags, dstGUID)
+    local info = spells[spellID]
+    if not info then return end
+
+    local barCfg
+    if IsHostile(srcFlags) then
+        barCfg = ZB.bars.hostile
+    elseif IsInParty(srcGUID) then
+        barCfg = ZB.bars.party
+    end
+    if not barCfg then return end
+
+    if info.is_aura then
+        if subEvent == "SPELL_AURA_APPLIED" or subEvent == "SPELL_AURA_REFRESH" then
+            AddOrRefreshIcon(barCfg, spellID, spells, srcGUID, dstGUID)
+        elseif subEvent == "SPELL_AURA_REMOVED" then
+            RemoveBySpell(barCfg, spellID, srcGUID)
+        end
+    elseif subEvent == "SPELL_CAST_SUCCESS" and info.is_success then
+        AddOrRefreshIcon(barCfg, spellID, spells, srcGUID, dstGUID)
+    elseif subEvent == "SPELL_DAMAGE" and info.isDamage then
+        AddOrRefreshIcon(barCfg, spellID, spells, srcGUID, dstGUID)
+    end
+end
+
+local function PrunePartyIcons()
+    local barCfg = ZB.bars.party
+    local bar    = barCfg.frame
+    if not bar then return end
+
+    local icons = bar.icons
+    local i     = 1
+
+    while i < barCfg.length do
+        local icon  = icons[i]
+        local src   = icon.srcGUID
+        local dst   = icon.dstGUID
+
+        local srcOk = (not src) or IsInParty(src)
+        local dstOk = (not dst) or IsInParty(dst)
+
+        -- if either GUID is explicitly non-party and not nil, drop the icon
+        if (src and not srcOk) or (dst and not dstOk) then
+            RemoveIcon(barCfg, i)
+        else
+            i = i + 1
+        end
+    end
+end
+local function OnCombatLog(...)
+    local _, subEvent, _, srcName, srcGUID, srcFlags,
+    dstName, dstGUID, spellID, spellName, _ = ...
+    if ZB.isDebug and srcGUID == (ZB.playerGUID or UnitGUID("target")) then
+        print(spellID, spellName, subEvent)
+    end
+
+    if ZB.isDisabled or (not ZB.trackAll and srcGUID == (ZB.playerGUID or UnitGUID("target"))) then
+        return
+    end
+
+    if spellID and specialSpells[spellID] then
+        HandleSpecDetection(spellID, srcGUID)
+    end
+
+    HandleResetSpells(spellID, srcGUID, srcFlags)
+
+    if IsMine(srcFlags) then
+        HandlePlayerSpell(subEvent, spellID, srcGUID, dstGUID)
+    elseif spells[spellID] then
+        HandleOtherSpell(subEvent, spellID, srcGUID, srcFlags, dstGUID)
+    end
+end
+
+------------------------------------------------------------------------
+-- Commands and events
+------------------------------------------------------------------------
+
+-- when starting OnUpdate
+ZB.frame:SetScript("OnUpdate", function(_, elapsed)
+    OnUpdate(elapsed)
+end)
+
+local function ClearAll()
+    for _, key in ipairs({ "player", "party", "hostile" }) do
+        local cfg = ZB.bars[key]
+        while cfg.length > 1 do
+            RemoveIcon(cfg, 1)
+        end
+    end
+    wipe(ZB.specByGUID)
+end
+
+local function OnSlash(msg)
+    msg = msg and msg:lower() or ""
+    if msg == "debug" then
+        ZB.isDebug = not ZB.isDebug
+        print("ZakatziBar debug:", ZB.isDebug and "ON" or "OFF")
+    elseif msg == "clear" then
+        ClearAll()
+        print("ZakatziBar: cleared bars.")
+    elseif msg == "disable" then
+        ZB.isDisabled = not ZB.isDisabled
+        print("ZakatziBar:", ZB.isDisabled and "DISABLED" or "ENABLED")
+    elseif msg == "all" then
+        ZB.trackAll = not ZB.trackAll
+        print("ZakatziBar: trackAll =", ZB.trackAll and "ON" or "OFF")
     else
-        print("Available commands: Debug, clear, disable, all.")
+        print("ZakatziBar commands:")
+        print("/zb debug   - toggle debug prints")
+        print("/zb clear   - clear all bars")
+        print("/zb disable - toggle tracking")
+        print("/zb all     - toggle tracking all sources vs others only")
     end
 end
 
-local function zb_on_load(self)
-        self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-        self:RegisterEvent("PLAYER_ENTERING_WORLD")
-        self:RegisterEvent("PARTY_MEMBERS_CHANGED") -- GROUP_ROSTER_UPDATE
-        zb_initialize_variables()
-        player_bar = zb_initialize_bar(player_bar, player_bar_x, player_bar_y, "zb_player")
-        party_bar = zb_initialize_bar(party_bar, party_bar_x, party_bar_y, "zb_party")
-        hostile_bar = zb_initialize_bar(hostile_bar, hostile_bar_x, hostile_bar_y, "zb_hostile")
-        SlashCmdList["ZAKATZIBAR"] = zb_commands
+local function OnEvent(self, event, ...)
+    if event == "PLAYER_LOGIN" then
+        InitSpellData()
+        for key in pairs(ZB.bars) do
+            ZB:CreateBar(key)
+        end
         SLASH_ZAKATZIBAR1 = "/zb"
+        SlashCmdList.ZAKATZIBAR = OnSlash
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        ClearAll()
+    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
+        OnCombatLog(...)
+    elseif event == "PARTY_MEMBERS_CHANGED" then
+        PrunePartyIcons()
+    end
 end
 
-local event_handler = {
-    ["PLAYER_LOGIN"] = function(self) zb_on_load(self) end,
-    ["PLAYER_ENTERING_WORLD"] = function(self) zb_entering_world(self) end,
-    ["COMBAT_LOG_EVENT_UNFILTERED"] = function(self,...) zb_combat_log(...) end,
-    ["PARTY_MEMBERS_CHANGED"] = function(self) zb_remove_ex_party_member_icons() end,
-}
-
-local function zb_on_event(self,event,...)
-	event_handler[event](self,...)
-end
-
-if not zb_frame then 
-    CreateFrame("Frame","zb_frame",UIParent)
-end
-zb_frame:SetScript("OnEvent",zb_on_event)
-zb_frame:RegisterEvent("PLAYER_LOGIN")
+ZB.frame:SetScript("OnEvent", OnEvent)
+ZB.frame:RegisterEvent("PLAYER_LOGIN")
+ZB.frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+ZB.frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+ZB.frame:RegisterEvent("PARTY_MEMBERS_CHANGED")
