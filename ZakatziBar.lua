@@ -32,6 +32,9 @@ local total_time_elapsed
 --Player identifier
 local player_guid
 
+-- Cached set of current party member GUIDs, refreshed on PARTY_MEMBERS_CHANGED
+local party_guids
+
 --Bar locations
 local player_bar_x
 local player_bar_y
@@ -58,7 +61,7 @@ local function zb_initialize_variables()
     hostile_bar_y = -325
     square_size = 45
 
-    queued_spells = {}
+    party_guids = {}
 
     is_disabled = false
     is_debugging = false
@@ -420,15 +423,13 @@ local function zb_update_text(bar, index)
     end
 end
 
-local function zb_get_duration(list, id)
+local function zb_get_duration(list, id, src_guid)
     if list[id].has_other_duration then
-        if specs_by_guid_list[src_guid] then
-            if (list[id].duration[specs_by_guid_list[src_guid]]) then
-                duration = list[id].duration[specs_by_guid_list[src_guid]]
-            end
-        else
-            return list[id].duration[1]
+        local spec = specs_by_guid_list[src_guid]
+        if spec and list[id].duration[spec] then
+            return list[id].duration[spec]
         end
+        return list[id].duration[1]
     else
         return list[id].duration
     end
@@ -444,7 +445,7 @@ local function zb_update_cooldowns(bar, length, list)
                 if list[bar[index].id].has_charges and bar[index].has_charges < list[bar[index].id].has_charges then
                     bar[index].has_charges = bar[index].has_charges + 1
                     bar[index].start = get_time
-                    bar[index].duration = zb_get_duration(list, bar[index].id)
+                    bar[index].duration = zb_get_duration(list, bar[index].id, bar[index].src_guid)
                     bar[index].cooldown = bar[index].duration
                     bar[index].cd:SetCooldown(bar[index].start,bar[index].duration)
                     zb_update_text(bar, index)
@@ -489,7 +490,7 @@ local function zb_add_icon(bar, length, id, list, src_guid, dst_guid)
                     bar[index].has_charges = bar[index].has_charges - 1
                 else
                     bar[index].start = get_time*2-count_delay_from_start
-                    bar[index].duration = zb_get_duration(list, id)
+                    bar[index].duration = zb_get_duration(list, id, src_guid)
                     bar[index].cooldown = bar[index].start + bar[index].duration - get_time
                     bar[index].cd:SetCooldown(bar[index].start,bar[index].duration)
                     zb_update_text(bar, index)
@@ -501,7 +502,7 @@ local function zb_add_icon(bar, length, id, list, src_guid, dst_guid)
         end
         index = index + 1
     end
-    if length < total_icons_per_bar then
+    if length <= total_icons_per_bar then
         if dst_guid then
             bar[length].dst_guid = dst_guid
         else
@@ -511,7 +512,7 @@ local function zb_add_icon(bar, length, id, list, src_guid, dst_guid)
             bar[length].has_charges = list[id].has_charges - 1
         end
         bar[length].src_guid = src_guid
-        bar[length].duration = zb_get_duration(list, id)
+        bar[length].duration = zb_get_duration(list, id, src_guid)
 
         bar[length].start = get_time*2-count_delay_from_start
         bar[length].cooldown = bar[length].start + bar[length].duration - get_time
@@ -555,15 +556,22 @@ local function zb_event_type(combat_event, bar, length, id, line, src_guid, dst_
     return length
 end
 
-local function zb_is_in_party(guid)
+local function zb_update_party_guids()
+    for guid in pairs(party_guids) do
+        party_guids[guid] = nil
+    end
     local index = 1
     while index < 5 do
-        if (UnitGUID("party" .. index) == guid) then
-            return true
+        local guid = UnitGUID("party" .. index)
+        if guid then
+            party_guids[guid] = true
         end
         index = index + 1
     end
-    return false
+end
+
+local function zb_is_in_party(guid)
+    return party_guids[guid] == true
 end
 
 local function zb_combat_log(timestamp, combat_event, src_guid, src_name, src_flags, dst_guid, dst_name, dst_flags, spell_id, spell_name)
@@ -581,11 +589,11 @@ local function zb_combat_log(timestamp, combat_event, src_guid, src_name, src_fl
     end
     if spell_id == 14185 or spell_id == 23989 or spell_id == 11958 then
         if bit.band(src_flags, COMBATLOG_OBJECT_REACTION_HOSTILE) > 0 then
-            for related_id in pairs(spells_list[spell_id].related) do
+            for _, related_id in ipairs(spells_list[spell_id].related) do
                 length_of_hostile_bar = zb_remove_icon(hostile_bar, length_of_hostile_bar, related_id, true, src_guid)
             end
         elseif zb_is_in_party(src_guid) then
-            for related_id in pairs(spells_list[spell_id].related) do
+            for _, related_id in ipairs(spells_list[spell_id].related) do
                 length_of_party_bar = zb_remove_icon(party_bar, length_of_party_bar, related_id, true, src_guid)
             end
         end
@@ -598,14 +606,14 @@ local function zb_combat_log(timestamp, combat_event, src_guid, src_name, src_fl
                 length_of_player_bar = zb_event_type(combat_event, player_bar, length_of_player_bar, spell_id, player_spells_list, src_guid)
             end
         elseif combat_event == "SWING_MISSED" then
-            for id in pairs(player_spells_list) do
-                if player_spells_list[id].is_swing and (player_spells_list[id].class == nil or player_spells_list[id].class == player_class) then
-                    for swing_type in pairs(player_spells[id].swing_types) do
+            for id, info in pairs(player_spells_list) do
+                if info.is_swing and (info.class == nil or info.class == player_class) then
+                    for _, swing_type in ipairs(info.swing_types) do
                         if swing_type == spell_id then
-                            length_of_player_bar = zb_add_icon(bar, length, id, line, src_guid)
+                            length_of_player_bar = zb_add_icon(player_bar, length_of_player_bar, id, player_spells_list, src_guid)
                             return
                         end
-                    end 
+                    end
                 end
             end
         end
@@ -631,8 +639,8 @@ local function zb_initialize_bar(bar, bar_x, bar_y, name)
     local texture
     local text
     local index = 1
-    while index < total_icons_per_bar do
-        
+    while index <= total_icons_per_bar do
+
         location = square_size * index + 5 * index
 
         icon = CreateFrame("Frame",nil,bar)
@@ -704,18 +712,24 @@ local function zb_entering_world()
 end
 
 local function zb_remove_ex_party_member_icons()
+    zb_update_party_guids()
     local index = 1
     while index < length_of_party_bar do
+        local removed = false
         if (party_bar[index]["src_guid"]) then
-            if zb_is_in_party(party_bar[index].src_guid) then
+            if not zb_is_in_party(party_bar[index].src_guid) then
                 length_of_party_bar = zb_remove_icon(party_bar, length_of_party_bar, index, false)
+                removed = true
             end
         elseif (party_bar[index]["dst_guid"]) then
-            if zb_is_in_party(party_bar[index].dst_guid) then
+            if not zb_is_in_party(party_bar[index].dst_guid) then
                 length_of_party_bar = zb_remove_icon(party_bar, length_of_party_bar, index, false)
+                removed = true
             end
         end
-        index = index + 1
+        if not removed then
+            index = index + 1
+        end
     end
 end
 
@@ -744,6 +758,7 @@ local function zb_on_load(self)
         self:RegisterEvent("PLAYER_ENTERING_WORLD")
         self:RegisterEvent("PARTY_MEMBERS_CHANGED") -- GROUP_ROSTER_UPDATE
         zb_initialize_variables()
+        zb_update_party_guids()
         player_bar = zb_initialize_bar(player_bar, player_bar_x, player_bar_y, "zb_player")
         party_bar = zb_initialize_bar(party_bar, party_bar_x, party_bar_y, "zb_party")
         hostile_bar = zb_initialize_bar(hostile_bar, hostile_bar_x, hostile_bar_y, "zb_hostile")
